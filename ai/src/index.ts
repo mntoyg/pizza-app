@@ -2,8 +2,25 @@ export { jointAngle } from './pose/angles';
 export type { AngleOptions } from './pose/angles';
 export { createMedianFilter, createOneEuroFilter } from './pose/filters';
 export type { MedianFilter, OneEuroFilter, OneEuroOptions } from './pose/filters';
-export { LANDMARK, extractSignal } from './pose/signals';
-export type { Metric, Signal, SignalOptions } from './pose/signals';
+export { LANDMARK, extractPairSignals, extractSignal, isPairedMetric } from './pose/signals';
+export type {
+  Metric,
+  PairSignals,
+  PairedMetric,
+  SingleMetric,
+  Signal,
+  SignalOptions,
+} from './pose/signals';
+export { createBaseline } from './pose/baseline';
+export type { Baseline, BaselineOptions, BaselineResult } from './pose/baseline';
+export { createAlternatingCounter } from './pose/alternating-counter';
+export type {
+  AlternatingCounter,
+  AlternatingCounterConfig,
+  AlternatingCounterState,
+} from './pose/alternating-counter';
+export { createCounterEngine } from './pose/engines';
+export type { CounterEngine, EngineFrame, Sensed } from './pose/engines';
 export { createRepCounter } from './pose/rep-counter';
 export type { RepCounter, RepCounterConfig, RepCounterState, RepPhase } from './pose/rep-counter';
 export { createPoseSession } from './pose/pose-session';

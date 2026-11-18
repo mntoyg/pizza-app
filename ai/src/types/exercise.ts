@@ -3,9 +3,9 @@ import type { Metric } from '../pose/signals';
 /** Thresholds a physiotherapist can edit without touching code. */
 export interface ExerciseCriteria {
   metric: Metric;
-  /** Measurement (degrees) that must be reached for a rep to start. */
+  /** Measurement that must be reached for a rep to start (degrees, or a ratio for stride-ratio). */
   up: number;
-  /** Measurement (degrees) the user must return to for the rep to finish. */
+  /** Measurement the user must return to for the rep to finish (same unit as `up`). */
   down: number;
   /** Reps faster than this (ms) are treated as noise. */
   minRepMs: number;

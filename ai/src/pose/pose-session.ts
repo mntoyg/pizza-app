@@ -7,9 +7,8 @@ import {
 } from '../coach/safety-guard';
 import type { Exercise } from '../types/exercise';
 import type { Landmark } from '../types/landmark';
-import { createMedianFilter, createOneEuroFilter } from './filters';
-import { createRepCounter, type RepPhase } from './rep-counter';
-import { extractSignal } from './signals';
+import { createCounterEngine, type EngineFrame } from './engines';
+import type { RepPhase } from './rep-counter';
 
 export interface PoseSessionOptions {
   exercise: Exercise;
@@ -28,7 +27,7 @@ export interface FrameInput {
 export interface FrameResult {
   reps: number;
   phase: RepPhase;
-  /** Filtered measurement in degrees; NaN until the first usable frame. */
+  /** Smoothed measurement; NaN until the first usable frame. */
   value: number;
   quality: TrackingQuality;
   action: SafetyAction;
@@ -36,6 +35,8 @@ export interface FrameResult {
   cue: CueKey | null;
   /** True only on the frame where a rep was completed. */
   repCompleted: boolean;
+  /** True while the person's resting posture is being learned (trunk rotation). */
+  calibrating: boolean;
 }
 
 export interface PoseSession {
@@ -46,88 +47,66 @@ export interface PoseSession {
 }
 
 /**
- * Wires one exercise end to end: signal extraction -> smoothing -> safety guard -> rep counter -> cue.
+ * Wires one exercise end to end: sense -> safety guard -> smoothing/counting -> cue.
  * Counting only happens while the guard says "continue"; any interruption discards the rep in
  * progress so a gap in tracking can never produce a phantom rep.
  */
 export function createPoseSession(options: PoseSessionOptions): PoseSession {
   const { exercise } = options;
   const { criteria } = exercise;
-  const minVisibility = criteria.minVisibility ?? 0.5;
 
-  const counter = createRepCounter({
-    up: criteria.up,
-    down: criteria.down,
-    minRepMs: criteria.minRepMs,
-  });
+  const engine = createCounterEngine(criteria);
   const guard = createSafetyGuard({
     needsCarer: exercise.needsCarer,
-    minVisibility,
+    minVisibility: criteria.minVisibility ?? 0.5,
     ...(options.lostPersonMs !== undefined ? { lostPersonMs: options.lostPersonMs } : {}),
     ...(options.lowTrackingMs !== undefined ? { lowTrackingMs: options.lowTrackingMs } : {}),
   });
-  const median = createMedianFilter(3);
-  const smooth = createOneEuroFilter({ minCutoff: 1.5, beta: 0.02 });
-  let lastValue = NaN;
-
-  const interrupt = () => {
-    counter.abandonRep();
-    median.reset();
-    smooth.reset();
-  };
 
   return {
     processFrame(frame) {
-      const landmarks = frame.landmarks;
-      const signal =
-        landmarks && landmarks.length > 0
-          ? extractSignal(criteria.metric, landmarks, { minVisibility })
-          : { value: NaN, visibility: 0 };
-
+      const sensed = engine.sense(frame.landmarks);
       const decision = guard.evaluate({
         timestampMs: frame.timestampMs,
-        personDetected: landmarks !== null && landmarks.length > 0,
-        visibility: signal.visibility,
+        personDetected: frame.landmarks !== null && frame.landmarks.length > 0,
+        visibility: sensed.visibility,
         cameraActive: frame.cameraActive ?? true,
       });
 
-      let repCompleted = false;
-      if (decision.action !== 'continue') {
-        interrupt();
-      } else if (Number.isFinite(signal.value)) {
-        const before = counter.state.reps;
-        lastValue = smooth.filter(median.push(signal.value), frame.timestampMs);
-        counter.update(lastValue, frame.timestampMs);
-        repCompleted = counter.state.reps > before;
+      let state: EngineFrame;
+      if (decision.action === 'continue') {
+        state = engine.advance(sensed, frame.timestampMs);
+      } else {
+        engine.abandonRep();
+        state = engine.peek();
       }
 
-      const state = counter.state;
+      const reason = decision.reason !== undefined ? { reason: decision.reason } : {};
       return {
         reps: state.reps,
         phase: state.phase,
-        value: lastValue,
+        value: state.value,
         quality: decision.quality,
         action: decision.action,
-        ...(decision.reason !== undefined ? { reason: decision.reason } : {}),
+        ...reason,
         cue: cueForFrame({
           phase: state.phase,
-          value: lastValue,
+          value: state.value,
           up: criteria.up,
           down: criteria.down,
           action: decision.action,
-          ...(decision.reason !== undefined ? { reason: decision.reason } : {}),
+          calibrating: state.calibrating,
+          ...reason,
         }),
-        repCompleted,
+        repCompleted: state.repCompleted,
+        calibrating: state.calibrating,
       };
     },
     confirmCarer: () => guard.confirmCarer(),
     requestStop: () => guard.requestStop(),
     reset() {
       guard.reset();
-      counter.reset();
-      median.reset();
-      smooth.reset();
-      lastValue = NaN;
+      engine.reset();
     },
   };
 }

@@ -6,6 +6,7 @@ import type { CueKey } from '../cues';
  */
 export const EN_MESSAGES: Record<CueKey, string> = {
   get_into_start_position: 'Get into the starting position',
+  calibrating: 'Sit still and face the camera for a moment',
   reach_higher: 'A little higher',
   hold_then_lower: 'Hold for a moment, then lower slowly',
   person_lost: "We can't see you. Please step back into the camera view",

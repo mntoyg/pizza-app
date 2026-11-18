@@ -154,6 +154,8 @@ export async function createPizzaCore(options: PizzaCoreOptions = {}): Promise<P
               revokedAt: at,
             };
         await storage.setConsent(record);
+        // Fire and forget: a slow or offline network must never stall the UI. flush() re-sends.
+        void transport?.sendConsents?.([record])?.catch(() => {});
         return record;
       },
     },
@@ -183,6 +185,19 @@ export async function createPizzaCore(options: PizzaCoreOptions = {}): Promise<P
     sync: {
       async flush() {
         if (!transport) return { status: 'skipped', reason: 'no-transport' };
+
+        // Keep the server's view of consent in step first - revocations included - so it can
+        // enforce them even when nothing is uploaded.
+        if (transport.sendConsents) {
+          const all = await storage.listConsents();
+          if (all.length > 0) {
+            try {
+              await transport.sendConsents(all);
+            } catch {
+              // best effort; an upload that needs the consent will report consent-required
+            }
+          }
+        }
         const consent = await storage.getConsent('sync_sessions');
         if (!consent?.granted) return { status: 'skipped', reason: 'no-consent' };
 

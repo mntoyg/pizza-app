@@ -75,6 +75,11 @@ export interface Storage {
 export interface SyncTransport {
   /** Resolves with the clientIds the server accepted (or already had). */
   sendSessions(sessions: readonly StoredSession[]): Promise<{ acceptedIds: string[] }>;
+  /**
+   * Tells the server the user's current consent choices (server stamps the time). Best effort:
+   * failures never block local use. Revocations must be delivered too.
+   */
+  sendConsents?(records: readonly ConsentRecord[]): Promise<void>;
   /** Deletes everything held for this user in the cloud. */
   deleteMyData?(): Promise<void>;
 }

@@ -78,3 +78,5 @@ export type {
   StoredSession,
   SyncTransport,
 } from './core/types';
+export { createSupabaseTransport } from './core/supabase-transport';
+export type { SupabaseTransportOptions } from './core/supabase-transport';

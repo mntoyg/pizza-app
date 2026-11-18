@@ -45,6 +45,7 @@ describe('public API surface', () => {
       'createPizzaCore',
       'openStorage',
       'createMediaPipeBackend',
+      'createSupabaseTransport',
       'CONSENT_PURPOSES',
     ]) {
       expect(api, name).toHaveProperty(name);

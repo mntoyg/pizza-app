@@ -4,7 +4,9 @@ For the UI team. Nothing here has been plugged into `frontend/` yet — you choo
 Everything below lives in `ai/` (on-device engine, `PizzaCore`) and `backend/` (Supabase).
 
 > Status: all exercise thresholds are **placeholders (draft)** until a physiotherapist approves them.
-> The pose engine has been tested with synthetic landmarks only, **not yet with a real camera/model**.
+> The pose engine has been tried with a real camera and the real MediaPipe model for **one exercise only
+> (`arm-raise`, one person, one session: 5 reps done, 5 counted)**. The other four exercises have only been
+> tested with synthetic landmarks. See "Camera placement" in section 5.
 
 ## 1. Build the on-device core
 
@@ -86,6 +88,41 @@ ESM / React: `import { createPizzaCore } from '/vendor/pizza-core.js'` and pass
 
 The ids differ from `EX` in `index.html`; map them: `arm → arm-raise`, `seat → seated-alt-arm`,
 `sts → sit-stand`, `trk → torso-twist`.
+
+### Camera placement: add a framing step before the exercise starts
+
+Every angle the engine measures needs specific body points to be clearly visible (visibility ≥ 0.5 on
+each). If any needed point is out of frame or too dark, that frame is **unmeasurable**: the engine
+pauses, gives the cue `person_lost` or `low_tracking`, and **counts nothing**. This is deliberate
+(fail safe), but to a user it looks like "the app is broken" unless the UI guides them.
+
+What we saw on a real camera with `arm-raise` (needs hip, shoulder and wrist on both sides):
+
+- With the hips out of frame (typical for a laptop webcam at desk distance): every frame was
+  unmeasurable, tracking stayed `poor`, and 0 reps were counted.
+- Standing back so the head down to the hips were in view: the person was found on every frame,
+  about 91% of frames produced an angle, and 5 reps were counted for 5 done. The other frames had no
+  angle, probably while the arms were overhead and the wrists/elbows were less visible (not
+  confirmed). No pause or safety stop was triggered and tracking ended `good`.
+
+What the UI should do:
+
+1. Show the live camera preview first, with plain wording such as: "Stand about 2 m (6 ft) from the
+   camera so your head down to your hips is in view, facing the camera, in good light."
+   (For `sit-stand` and `big-step`, a side view with the whole body, and a carer nearby.)
+2. Do not start counting until tracking is good: use the `onQuality` handler (or `r.quality` in
+   `onFrame`; values `'good' | 'fair' | 'poor'`) and enable the Start button only after a
+   second or two of `'good'`.
+3. During the exercise, show the cue text from `onCue` (`person_lost`: "We can't see you. Please
+   step back into the camera view", `low_tracking`: "We can't see you clearly. Check the lighting
+   and your position"). Do not hide them.
+4. Keep the stop control always reachable.
+
+Not yet checked on a real camera: low light, several people in the frame, tremor, and the other four
+exercises (`torso-twist` also depends on MediaPipe's depth value, which is noisier).
+
+Browser note: serve the `.mjs` files with a JavaScript MIME type. Python's `http.server` on Windows
+serves `.mjs` as `text/plain`, and browsers then refuse to load the module.
 
 ## 6. Sign-in and syncing to Supabase
 

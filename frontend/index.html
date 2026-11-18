@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -79,49 +79,49 @@ main>*{animation:rise .35s ease both}
 </head>
 <body>
 <main id="main" tabindex="-1"></main>
-<nav class="nav" id="nav" aria-label="เมนูหลัก"></nav>
+<nav class="nav" id="nav" aria-label="Main menu"></nav>
 <script>
 "use strict";
 /* ===== state / storage (localStorage; swap for IndexedDB/backend later in the same functions) ===== */
 const KEY="pizza.v1";
 let DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};
 try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.sessions))DB={...DB,...r,set:{...DB.set,...r.set}}}catch(e){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast("บันทึกข้อมูลในเครื่องไม่ได้")}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast("Couldn't save data on this device")}}
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0");
 const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
-function speak(t){if(!DB.set.voice||!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(t);u.lang="th-TH";speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
-function toast(m){const d=document.createElement("div");d.className="ov";d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><button class="w">ตกลง</button></div>';d.querySelector("button").onclick=()=>d.remove();document.body.appendChild(d)}
-function ask(m,ok){return new Promise(r=>{const d=document.createElement("div");d.className="ov";d.setAttribute("role","dialog");d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><div class="row"><button class="ln g" data-v="0">ยกเลิก</button><button class="g" data-v="1">'+esc(ok)+'</button></div></div>';d.onclick=e=>{const v=e.target.dataset.v;if(v!=null){d.remove();r(v=="1")}};document.body.appendChild(d)})}
+function speak(t){if(!DB.set.voice||!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(t);u.lang="en-US";speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+function toast(m){const d=document.createElement("div");d.className="ov";d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><button class="w">OK</button></div>';d.querySelector("button").onclick=()=>d.remove();document.body.appendChild(d)}
+function ask(m,ok){return new Promise(r=>{const d=document.createElement("div");d.className="ov";d.setAttribute("role","dialog");d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><div class="row"><button class="ln g" data-v="0">Cancel</button><button class="g" data-v="1">'+esc(ok)+'</button></div></div>';d.onclick=e=>{const v=e.target.dataset.v;if(v!=null){d.remove();r(v=="1")}};document.body.appendChild(d)})}
 
 /* ===== exercise data (demo, NOT clinically approved) ===== */
 const D={shL:0,shR:0,el:8,lean:0,tw:0,h:0,k:0,fold:0};
 const K=(b,a)=>a.map(([t,o])=>({t,...D,...b,...o}));
 const up={shL:170,shR:170,el:4,lean:-3},sit={h:90,k:90},ar=v=>({shL:v,shR:v});
 const EX=[
-{id:"arm",name:"ยกแขนสูง",cat:"A",sup:true,dur:9,tv:"front",tt:4,why:"ฝึกให้แขนและลำตัวเคลื่อนไหวกว้างขึ้น",
- steps:["ยืนตัวตรงใกล้ผนังหรือเก้าอี้ที่มั่นคง แขนแนบลำตัว","ยกแขนสองข้างขึ้นช้า ๆ ให้สูงที่สุดเท่าที่สบาย","ค้างที่จุดสูงสุด นับ 1–2","ลดแขนลงช้า ๆ กลับท่าพัก"],
- warn:["หยุดทันทีหากเวียนศีรษะหรือเสียการทรงตัว","ควรมีผู้ดูแลอยู่ใกล้ขณะยืน"],
- cap:[[0,"ยืนตัวตรง แขนแนบลำตัว หายใจเข้าช้า ๆ"],[.6,"ยกแขนทั้งสองข้างขึ้นช้า ๆ"],[3.4,"ถึงจุดสูงสุด เปิดอก ค้างไว้นับ 1–2"],[5,"ลดแขนลงช้า ๆ"],[7.8,"กลับสู่ท่าพัก"]],
+{id:"arm",name:"High arm raise",cat:"A",sup:true,dur:9,tv:"front",tt:4,why:"Trains the arms and trunk to move through a wider range",
+ steps:["Stand upright near a wall or a sturdy chair, arms at your sides","Slowly raise both arms as high as is comfortable","Hold at the top for a count of 1–2","Slowly lower your arms back to the rest position"],
+ warn:["Stop immediately if you feel dizzy or lose your balance","A carer should be nearby while standing"],
+ cap:[[0,"Stand tall, arms at your sides, breathe in slowly"],[.6,"Slowly raise both arms"],[3.4,"At the top, open your chest and hold for a count of 1–2"],[5,"Slowly lower your arms"],[7.8,"Back to the rest position"]],
  kf:K({},[[0,{}],[.6,{}],[3.4,up],[5,up],[7.8,{}],[9,{}]])},
-{id:"seat",name:"นั่งยกแขนสลับข้าง",cat:"A",sup:false,dur:12.5,tv:"front",tt:3.5,why:"ฝึกการยกแขนขณะนั่ง ลดความเสี่ยงล้ม",
- steps:["นั่งหลังตรงบนเก้าอี้ที่มั่นคง เท้าวางราบกับพื้น","ยกแขนซ้ายขึ้นช้า ๆ ค้างเล็กน้อย แล้วลดลง","ยกแขนขวาขึ้นช้า ๆ ค้างเล็กน้อย แล้วลดลง","ทำสลับกันตามโปรแกรมที่กำหนด"],
- warn:["ใช้เก้าอี้ไม่มีล้อ ชิดผนัง","หยุดพักได้ทุกเมื่อ"],
- cap:[[0,"นั่งหลังตรง เท้าวางราบกับพื้น"],[.6,"ยกแขนข้างหนึ่งขึ้นช้า ๆ"],[3,"ค้างไว้ หายใจตามสบาย"],[4,"ลดแขนลงช้า ๆ"],[6.6,"สลับยกแขนอีกข้าง"],[10,"ลดแขนลง พักเล็กน้อย"]],
+{id:"seat",name:"Seated alternating arm raise",cat:"A",sup:false,dur:12.5,tv:"front",tt:3.5,why:"Practice raising your arms while seated to reduce fall risk",
+ steps:["Sit upright on a sturdy chair with feet flat on the floor","Slowly raise your left arm, hold briefly, then lower it","Slowly raise your right arm, hold briefly, then lower it","Alternate sides according to the set program"],
+ warn:["Use a chair without wheels, against a wall","You can rest at any time"],
+ cap:[[0,"Sit upright with feet flat on the floor"],[.6,"Slowly raise one arm"],[3,"Hold and breathe comfortably"],[4,"Slowly lower your arms"],[6.6,"Switch and raise the other arm"],[10,"Lower your arm and rest briefly"]],
  kf:K(sit,[[0,{}],[.6,{}],[3,{shL:150,el:6}],[4,{shL:150,el:6}],[6,{}],[6.6,{}],[9,{shR:150,el:6}],[10,{shR:150,el:6}],[12,{}],[12.5,{}]])},
-{id:"sts",name:"ลุก–นั่งจากเก้าอี้",cat:"B",sup:true,fwd:true,dur:10.4,tv:"side",tt:2.7,why:"ฝึกการลุกและนั่งในชีวิตประจำวัน",
- steps:["นั่งชิดขอบเก้าอี้ที่มั่นคง เท้าแยกกว้างเท่าไหล่","โน้มตัวไปข้างหน้า แล้วดันเท้าลุกขึ้นยืน","ยืนตรงนิ่ง ๆ ครู่หนึ่ง","โน้มตัวเล็กน้อย แล้วนั่งลงช้า ๆ"],
- warn:["ต้องมีผู้ดูแลอยู่ใกล้ทุกครั้ง","ไม่ใช้เก้าอี้ที่มีล้อหรือลื่น"],
- cap:[[0,"นั่งชิดขอบเก้าอี้ เท้าวางราบ"],[.8,"โน้มตัวไปข้างหน้า ให้จมูกอยู่เหนือปลายเท้า"],[2.6,"ดันเท้า ยืดสะโพกและเข่าขึ้น"],[5,"ยืนตรงนิ่ง ๆ"],[6.4,"โน้มตัว ถอยสะโพกไปหาเก้าอี้"],[8.6,"นั่งลงช้า ๆ อย่างควบคุม"]],
+{id:"sts",name:"Sit-to-stand from a chair",cat:"B",sup:true,fwd:true,dur:10.4,tv:"side",tt:2.7,why:"Practice standing up and sitting down in daily life",
+ steps:["Sit at the edge of a sturdy chair, feet shoulder-width apart","Lean forward, then push through your feet to stand up","Stand upright and still for a moment","Lean forward slightly, then sit down slowly"],
+ warn:["A carer must be nearby every time","Do not use a chair with wheels or a slippery seat"],
+ cap:[[0,"Sit at the edge of the chair, feet flat"],[.8,"Lean forward so your nose is over your toes"],[2.6,"Push through your feet and straighten your hips and knees"],[5,"Stand upright and still"],[6.4,"Lean forward and move your hips back toward the chair"],[8.6,"Sit down slowly and with control"]],
  kf:K({},[[0,{...sit,...ar(15)}],[.8,{...sit,...ar(15)}],[2.6,{h:88,k:88,lean:32,...ar(75)}],[5,{...ar(20)}],[6.4,{...ar(20)}],[8.6,{h:88,k:88,lean:30,...ar(75)}],[10.4,{...sit,...ar(15)}]])},
-{id:"trk",name:"หมุนลำตัวขณะนั่ง",cat:"A",sup:false,dur:11.5,tv:"front",tt:3.6,why:"ฝึกการหมุนลำตัวช้า ๆ ในช่วงที่สบาย",
- steps:["นั่งหลังตรง กอดอกหรือวางมือบนไหล่","หมุนลำตัวช้า ๆ ไปทางหนึ่ง ในช่วงที่สบาย","กลับมาตรงกลาง แล้วหมุนไปอีกทาง","เท้าอยู่กับที่ ไม่เกร็งคอและไหล่"],
- warn:["หมุนเท่าที่สบาย ไม่ฝืน","หยุดทันทีหากเจ็บหรือเวียนศีรษะ"],
- cap:[[0,"นั่งหลังตรง กอดอก"],[.8,"หมุนลำตัวช้า ๆ ไปทางหนึ่ง"],[3,"ค้างเล็กน้อย หายใจตามสบาย"],[4.2,"หมุนผ่านตรงกลางไปอีกทาง"],[7,"ค้างเล็กน้อย"],[8.2,"กลับมาตรงกลาง"]],
+{id:"trk",name:"Seated trunk rotation",cat:"A",sup:false,dur:11.5,tv:"front",tt:3.6,why:"Practice slow trunk rotation within a comfortable range",
+ steps:["Sit upright, fold your arms or rest your hands on your shoulders","Slowly rotate your trunk to one side, within a comfortable range","Return to the center, then rotate to the other side","Keep your feet in place and don't tense your neck and shoulders"],
+ warn:["Rotate only as far as is comfortable; don't force it","Stop immediately if you feel pain or dizziness"],
+ cap:[[0,"Sit upright, arms folded"],[.8,"Slowly rotate your trunk to one side"],[3,"Hold briefly and breathe comfortably"],[4.2,"Rotate through the center to the other side"],[7,"Hold briefly"],[8.2,"Return to the center"]],
  kf:K({...sit,fold:1,shL:32,shR:32,el:118},[[0,{}],[.8,{}],[3,{tw:40}],[4.2,{tw:40}],[7,{tw:-40}],[8.2,{tw:-40}],[10.5,{}],[11.5,{}]])}
 ];
-const LOCK=[["C","ฝึกจังหวะและก้าวเดิน","ต้องกำหนดเงื่อนไขความปลอดภัยโดยนักกายภาพ"],["D","ท่ารำไทยประยุกต์","รอผู้เชี่ยวชาญออกแบบและตรวจสอบ"],["D","การเคลื่อนไหวด้วยไม้พลอง","รอผู้เชี่ยวชาญออกแบบและตรวจสอบ"]];
-const CATS={A:"A · ท่าเคลื่อนไหวกว้าง",B:"B · การเคลื่อนไหวเพื่อใช้งานจริง",C:"C · การเดินและการเคลื่อนที่",D:"D · การเคลื่อนไหวแบบไทย"};
+const LOCK=[["C","Rhythm and walking practice","Safety conditions must be set by a physiotherapist"],["D","Adapted Thai dance moves","Awaiting expert design and review"],["D","Movement with a staff","Awaiting expert design and review"]];
+const CATS={A:"A · Wide-range movements",B:"B · Functional movements",C:"C · Walking and locomotion",D:"D · Thai-style movements"};
 const exOf=id=>EX.find(e=>e.id==id)||EX[0];
 
 /* ===== animation engine: timeline + rig ===== */
@@ -144,7 +144,7 @@ const SIDE=`<ellipse cx="-40" cy="2" rx="130" ry="8" fill="#26332f" opacity=".08
 <g id="hd"><ellipse cx="3" cy="-136" rx="16" ry="20" fill="${SK}"/><path d="M19 -138Q25 -135 19 -131Z" fill="${SK}"/><path d="M-14 -134Q-16 -160 5 -160Q19 -158 18 -143Q8 -150-1 -146Q-8 -140-8 -130Z" fill="${HA}"/><circle cx="10" cy="-138" r="1.9" fill="${ST}"/><path d="M8 -128Q13 -126 17 -128" stroke="#a8553f" stroke-width="2" fill="none" stroke-linecap="round"/></g>${J(0,-112)}
 <g id="nr" transform="translate(0 -98)"><rect x="-8" y="-4" width="16" height="62" rx="8" fill="${SK}"/><rect x="-9" y="-6" width="18" height="32" rx="9" fill="${SH}"/>${J(0,0)}<g id="nrf" transform="translate(0 58)"><rect x="-7" y="-4" width="14" height="54" rx="7" fill="${SK}"/><ellipse id="nrh" cx="0" cy="56" rx="8" ry="10" fill="${SK}"/>${J(0,0)}${J(0,56)}</g></g></g></g><g id="trail"></g>`;
 function makeFig(view){
- const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 300 340");s.setAttribute("role","img");s.setAttribute("aria-label","ตัวละครสาธิตท่าออกกำลังกาย");
+ const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 300 340");s.setAttribute("role","img");s.setAttribute("aria-label","Exercise demonstration figure");
  const X=view=="front"?150:200;
  s.innerHTML=`<g id="root" transform="translate(${X} 322) scale(.78)">${view=="front"?FRONT:SIDE}</g>`;
  const q=c=>s.querySelector(c),qa=c=>[...s.querySelectorAll(c)],r=d=>d*Math.PI/180,T=(e,v)=>e&&e.setAttribute("transform",v);
@@ -175,7 +175,7 @@ let RAF=0,TICK=null,SESS=null;
 function stopAll(){cancelAnimationFrame(RAF);clearInterval(TICK);TICK=null}
 function player(box,ex,o={}){
  let view=o.view||ex.tv,t=0,spd=1,play=!reduce&&o.auto!==false,det=false,last=0,fig,capI=-1;
- box.innerHTML=`<div class="stage${o.mini?" mini":""}" id="stg"></div><div class="cap" id="cap" aria-live="polite"></div>`+(o.ctl===false?"":`<input type="range" id="tl" min="0" max="1000" value="0" aria-label="ไทม์ไลน์การเคลื่อนไหว"><div class="ctl"><button id="pp"></button><button class="ln" id="rp">↺ เล่นซ้ำ</button><span class="seg" id="sp" aria-label="ความเร็ว">${[.5,.75,1].map(v=>`<button data-v="${v}" class="${v==1?"on":""}">${v}x</button>`).join("")}</span></div><div class="ctl"><span class="seg" id="vw" aria-label="มุมมอง"><button data-v="front" class="${view=="front"?"on":""}">ด้านหน้า</button><button data-v="side" class="${view=="side"?"on":""}">ด้านข้าง</button></span><span class="seg"><button id="dt" aria-pressed="false">แสดงข้อต่อ</button></span></div><p class="mu">เส้นประ = แนวการเคลื่อนไหวของมือ · ภาพสาธิตต้นแบบ ยังไม่ผ่านการตรวจสอบโดยผู้เชี่ยวชาญ</p>`);
+ box.innerHTML=`<div class="stage${o.mini?" mini":""}" id="stg"></div><div class="cap" id="cap" aria-live="polite"></div>`+(o.ctl===false?"":`<input type="range" id="tl" min="0" max="1000" value="0" aria-label="Movement timeline"><div class="ctl"><button id="pp"></button><button class="ln" id="rp">↺ Replay</button><span class="seg" id="sp" aria-label="Speed">${[.5,.75,1].map(v=>`<button data-v="${v}" class="${v==1?"on":""}">${v}x</button>`).join("")}</span></div><div class="ctl"><span class="seg" id="vw" aria-label="View"><button data-v="front" class="${view=="front"?"on":""}">Front</button><button data-v="side" class="${view=="side"?"on":""}">Side</button></span><span class="seg"><button id="dt" aria-pressed="false">Show joints</button></span></div><p class="mu">Dashed line = hand movement path · Prototype demo, not yet reviewed by an expert</p>`);
  const stg=box.querySelector("#stg"),cap=box.querySelector("#cap"),tl=box.querySelector("#tl"),pp=box.querySelector("#pp");
  function build(){fig=makeFig(view);stg.innerHTML="";stg.appendChild(fig.el);stg.classList.toggle("det",det);fig.el.classList.toggle("det",det);
   const g=fig.el.querySelector("#trail");const ns="http://www.w3.org/2000/svg";
@@ -184,7 +184,7 @@ function player(box,ex,o={}){
    const c=document.createElementNS(ns,"circle");const [x,y]=pts[0].split(",");c.setAttribute("cx",x);c.setAttribute("cy",y);c.setAttribute("r","5");c.setAttribute("fill","#2f7d4f");fig.el.querySelector("#root").insertAdjacentElement("afterend",pl);pl.after(c)});
   draw()}
  function draw(){fig.apply(poseAt(ex,t));if(tl)tl.value=Math.round(t/ex.dur*1000);let i=0;ex.cap.forEach((c,n)=>{if(t>=c[0])i=n});if(i!=capI){capI=i;cap.textContent=ex.cap[i][1];if(play&&o.speak)speak(ex.cap[i][1])}}
- function label(){if(pp){pp.textContent=play?"❚❚ หยุดชั่วคราว":"▶ เล่น";pp.setAttribute("aria-label",play?"หยุดชั่วคราว":"เล่น")}}
+ function label(){if(pp){pp.textContent=play?"❚❚ Pause":"▶ Play";pp.setAttribute("aria-label",play?"Pause":"Play")}}
  function loop(ts){if(!stg.isConnected)return;const dt=Math.min(.1,(ts-last)/1000||0);last=ts;if(play){t+=dt*spd;if(t>=ex.dur){t-=ex.dur;capI=-1;o.onLoop&&o.onLoop()}draw()}RAF=requestAnimationFrame(loop)}
  if(tl){tl.oninput=()=>{t=tl.value/1000*ex.dur;draw()};
   pp.onclick=()=>{play=!play;label()};box.querySelector("#rp").onclick=()=>{t=0;capI=-1;play=true;label();draw()};
@@ -196,46 +196,46 @@ function player(box,ex,o={}){
 function thumb(el,ex){const f=makeFig(ex.tv);f.el.style.cssText="width:100%;height:100%";el.appendChild(f.el);f.apply(poseAt(ex,ex.tt))}
 
 /* ===== pages ===== */
-const NAV=[["home","หน้าแรก","M3 11l9-8 9 8v10H3z"],["lib","ท่าฝึก","M12 4a2 2 0 100 4 2 2 0 000-4M12 9v6M8 11l4 1 4-1M12 15l-3 6M12 15l3 6"],["prog","ความก้าวหน้า","M4 20V10M10 20V4M16 20v-8M22 20H2"],["care","ผู้ดูแล","M12 21s-8-5-8-11a4 4 0 018-1 4 4 0 018 1c0 6-8 11-8 11z"],["set","โปรไฟล์","M12 12a4 4 0 100-8 4 4 0 000 8M4 21c0-4 4-6 8-6s8 2 8 6"]];
+const NAV=[["home","Home","M3 11l9-8 9 8v10H3z"],["lib","Exercises","M12 4a2 2 0 100 4 2 2 0 000-4M12 9v6M8 11l4 1 4-1M12 15l-3 6M12 15l3 6"],["prog","Progress","M4 20V10M10 20V4M16 20v-8M22 20H2"],["care","Carers","M12 21s-8-5-8-11a4 4 0 018-1 4 4 0 018 1c0 6-8 11-8 11z"],["set","Profile","M12 12a4 4 0 100-8 4 4 0 000 8M4 21c0-4 4-6 8-6s8 2 8 6"]];
 let R={p:location.hash.slice(1)||"home",id:"arm",ob:0};
 function go(p,id){if(id)R.id=id;R.p=p;if(location.hash.slice(1)!=p)location.hash=p;render()}
 addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(h&&h!=R.p){R.p=h;render()}});
 const days=()=>{const a=[];for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);a.push(d)}return a};
 const sameDay=(iso,d)=>{const x=new Date(iso);return x.getFullYear()==d.getFullYear()&&x.getMonth()==d.getMonth()&&x.getDate()==d.getDate()};
-const card=e=>`<div class="bx row"><div class="th" data-th="${e.id}"></div><div class="g"><h3>${e.name}</h3><div class="mu">${e.why}</div><div style="margin:6px 0"><span class="tag${e.sup?" w2":""}">${e.sup?"ควรมีผู้ดูแลใกล้ตัว":"ฝึกขณะนั่ง"}</span> <span class="tag">ภาพสาธิตต้นแบบ</span></div><button class="ln" data-go="detail:${e.id}">ดูตัวอย่างและรายละเอียด</button></div></div>`;
+const card=e=>`<div class="bx row"><div class="th" data-th="${e.id}"></div><div class="g"><h3>${e.name}</h3><div class="mu">${e.why}</div><div style="margin:6px 0"><span class="tag${e.sup?" w2":""}">${e.sup?"Carer recommended nearby":"Seated exercise"}</span> <span class="tag">Prototype demo</span></div><button class="ln" data-go="detail:${e.id}">View preview and details</button></div></div>`;
 const PG={
-onb(){const s=[["รู้จัก PIZZA","ผู้ช่วยออกกำลังกายที่บ้านสำหรับผู้ป่วยพาร์กินสัน ดูภาพสาธิต ฝึกตามจังหวะ และเก็บบันทึกกิจกรรมไว้ในเครื่องของคุณ"],["เรียนรู้การออกกำลังกาย","ดูตัวละครสาธิตทีละขั้น ปรับความเร็วได้ เปลี่ยนมุมมองหน้า/ข้างได้ ก่อนเริ่มฝึกจริง"],["ใช้งานอย่างปลอดภัย","PIZZA เป็นเครื่องมือสนับสนุนกิจกรรม ไม่ใช่เครื่องมือวินิจฉัยหรือทดแทนนักกายภาพบำบัด ท่าที่เสี่ยงล้มต้องมีผู้ดูแลอยู่ใกล้ ข้อมูลทั้งหมดเก็บในเครื่องนี้ ไม่ถูกส่งไปที่ใด"]][R.ob];
- return `<div class="logo">PIZZA</div><p class="mu">Parkinson’s · In-home · Zestful · Zero-fall · Activity coach</p><div id="pv" class="stage mini" style="margin:14px 0"></div><h1>${s[0]}</h1><p>${s[1]}</p><div class="dots">${[0,1,2].map(i=>`<i class="${i==R.ob?"on":""}"></i>`).join("")}</div><div class="row">${R.ob?`<button class="ln g" data-act="obb">ย้อนกลับ</button>`:""}<button class="g" data-act="obn">${R.ob==2?"เริ่มต้นใช้งาน":"ถัดไป"}</button></div>`},
+onb(){const s=[["Meet PIZZA","A home exercise assistant for people with Parkinson's. Watch the demo, practice to the rhythm, and keep activity records on your own device."],["Learn the exercises","Watch the demo figure step by step, adjust the speed, and switch between front and side views before you practice for real."],["Use it safely","PIZZA is an activity-support tool, not a diagnostic tool, and it does not replace a physiotherapist. Exercises with a fall risk need a carer nearby. All data stays on this device and is not sent anywhere."]][R.ob];
+ return `<div class="logo">PIZZA</div><p class="mu">Parkinson’s · In-home · Zestful · Zero-fall · Activity coach</p><div id="pv" class="stage mini" style="margin:14px 0"></div><h1>${s[0]}</h1><p>${s[1]}</p><div class="dots">${[0,1,2].map(i=>`<i class="${i==R.ob?"on":""}"></i>`).join("")}</div><div class="row">${R.ob?`<button class="ln g" data-act="obb">Back</button>`:""}<button class="g" data-act="obn">${R.ob==2?"Get started":"Next"}</button></div>`},
 home(){const n=DB.set.name?" "+esc(DB.set.name):"",td=DB.sessions.filter(s=>sameDay(s.start,new Date())),m=Math.round(td.reduce((a,s)=>a+s.dur,0)/60),nx=EX.find(e=>!td.some(s=>s.ex==e.id&&s.status=="completed"))||EX[0],last=DB.sessions[DB.sessions.length-1];
- return `<p class="mu">${new Date().toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p><h1>สวัสดี${n}</h1>
- <div class="bx"><span class="tag w2">โปรแกรมตัวอย่าง (ไม่ใช่ใบสั่งการรักษา)</span><h3 style="margin-top:8px">ท่าถัดไป: ${nx.name}</h3><p class="mu">${nx.why}</p><button class="w" data-go="detail:${nx.id}">ดูตัวอย่างและเริ่มฝึก</button></div>
- <h2>วันนี้</h2><div class="bx row"><div class="g"><div class="big">${td.length}</div><div class="mu">ครั้งที่ฝึก</div></div><div class="g"><div class="big">${m}</div><div class="mu">นาที</div></div></div>
- ${last?`<div class="bx"><b>ล่าสุด:</b> ${esc(exOf(last.ex).name)} · ${fmt(last.dur)} · ${last.status=="completed"?"ครบตามกำหนด":"หยุดก่อนครบ"}</div>`:`<div class="bx mu">ยังไม่มีประวัติการฝึก เริ่มจากการดูตัวอย่างท่าได้เลย</div>`}
- <div class="row"><button class="g" data-go="lib">คลังท่าออกกำลังกาย</button><button class="ln g" data-go="learn">ศูนย์ความรู้</button></div>
- <div class="note">คำแนะนำทั่วไป: จัดพื้นที่ให้โล่ง สวมรองเท้าที่กระชับ และหยุดทันทีหากรู้สึกไม่สบาย</div>`},
-lib(){return `<h1>คลังท่าออกกำลังกาย</h1><p class="mu">ภาพสาธิตทั้งหมดเป็นต้นแบบ ยังไม่ผ่านการตรวจสอบโดยนักกายภาพบำบัด</p>`+Object.keys(CATS).map(c=>`<h2>${CATS[c]}</h2>`+EX.filter(e=>e.cat==c).map(card).join("")+LOCK.filter(l=>l[0]==c).map(l=>`<div class="bx"><h3>${l[1]}</h3><div class="mu">${l[2]}</div><span class="tag w2">กำลังพัฒนา</span></div>`).join("")).join("")},
-detail(){const e=exOf(R.id);return `<button class="ln" data-go="lib" style="min-height:44px">‹ กลับ</button><h1>${e.name}</h1><div class="mu">${e.why}</div><div class="sp"></div><div id="pv"></div>
- <h2>ขั้นตอน</h2><ol>${e.steps.map(s=>`<li>${s}</li>`).join("")}</ol><h2>ข้อควรระวัง</h2><ul>${e.warn.map(s=>`<li>${s}</li>`).join("")}</ul>
- <div class="note">จำนวนครั้งและระยะเวลา: ตามโปรแกรมที่นักกายภาพหรือแพทย์กำหนด (ค่าตัวอย่างในแอป ${TARGET} ครั้ง) · ${e.sup?"ท่านี้ควรมีผู้ดูแลอยู่ใกล้":"ท่านี้ฝึกขณะนั่ง"}</div><button class="w" data-go="session:${e.id}">เริ่มฝึก</button>`},
-session(){const e=exOf(R.id);if(!SESS)return `<h1>ก่อนเริ่ม: ${e.name}</h1><div class="bx"><label class="chk"><input type="checkbox" class="ck"><span>พื้นที่โล่ง ไม่ลื่น มีเก้าอี้หรือราวจับที่มั่นคง</span></label><label class="chk"><input type="checkbox" class="ck"><span>ท่านี้ได้รับอนุมัติจากนักกายภาพหรือแพทย์สำหรับฉันแล้ว</span></label>${e.sup?`<label class="chk"><input type="checkbox" class="ck"><span>มีผู้ดูแลอยู่ใกล้ตัวตลอดการฝึก</span></label>`:""}<label class="chk"><input type="checkbox" class="ck"><span>ฉันรู้สึกพร้อม และจะหยุดทันทีหากไม่สบาย</span></label></div><div class="note">ภาพสาธิตเป็นต้นแบบ ไม่ใช่ท่าฝึกที่ผ่านการรับรอง</div><div class="row"><button class="ln g" data-go="detail:${e.id}">ย้อนกลับ</button><button class="g" id="st" disabled>เริ่มฝึก</button></div>`;
- return `<h2 style="margin-top:0">${e.name}</h2><div id="pv"></div><div class="bx row"><div class="g"><div class="mu">เวลา</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">ครั้งที่</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">หยุดชั่วคราว</button><button class="dg g" id="en">จบการฝึก</button></div>`},
-done(){const s=DB.sessions[DB.sessions.length-1];if(!s)return PG.home();return `<h1>${s.status=="completed"?"ทำได้ดีมาก":"บันทึกการฝึกแล้ว"}</h1><div class="bx"><b>${esc(exOf(s.ex).name)}</b><div class="mu">เวลา ${fmt(s.dur)} · ${s.reps} ครั้ง · ${s.status=="completed"?"ครบตามกำหนด":"หยุดก่อนครบ"}</div></div><div class="row"><button class="g" data-go="prog">ดูความก้าวหน้า</button><button class="ln g" data-go="home">กลับหน้าแรก</button></div>`},
+ return `<p class="mu">${new Date().toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p><h1>Hello${n}</h1>
+ <div class="bx"><span class="tag w2">Sample program (not a treatment prescription)</span><h3 style="margin-top:8px">Next exercise: ${nx.name}</h3><p class="mu">${nx.why}</p><button class="w" data-go="detail:${nx.id}">View preview and start</button></div>
+ <h2>Today</h2><div class="bx row"><div class="g"><div class="big">${td.length}</div><div class="mu">Sessions</div></div><div class="g"><div class="big">${m}</div><div class="mu">minutes</div></div></div>
+ ${last?`<div class="bx"><b>Latest:</b> ${esc(exOf(last.ex).name)} · ${fmt(last.dur)} · ${last.status=="completed"?"Completed as planned":"Stopped early"}</div>`:`<div class="bx mu">No exercise history yet. Start by previewing an exercise.</div>`}
+ <div class="row"><button class="g" data-go="lib">Exercise library</button><button class="ln g" data-go="learn">Knowledge center</button></div>
+ <div class="note">General tips: clear the space, wear snug-fitting shoes, and stop immediately if you feel unwell.</div>`},
+lib(){return `<h1>Exercise library</h1><p class="mu">All demos are prototypes and have not yet been reviewed by a physiotherapist.</p>`+Object.keys(CATS).map(c=>`<h2>${CATS[c]}</h2>`+EX.filter(e=>e.cat==c).map(card).join("")+LOCK.filter(l=>l[0]==c).map(l=>`<div class="bx"><h3>${l[1]}</h3><div class="mu">${l[2]}</div><span class="tag w2">In development</span></div>`).join("")).join("")},
+detail(){const e=exOf(R.id);return `<button class="ln" data-go="lib" style="min-height:44px">‹ Back</button><h1>${e.name}</h1><div class="mu">${e.why}</div><div class="sp"></div><div id="pv"></div>
+ <h2>Steps</h2><ol>${e.steps.map(s=>`<li>${s}</li>`).join("")}</ol><h2>Precautions</h2><ul>${e.warn.map(s=>`<li>${s}</li>`).join("")}</ul>
+ <div class="note">Reps and duration: as set by your physiotherapist or doctor (sample value in the app: ${TARGET} reps) · ${e.sup?"A carer should be nearby for this exercise":"This exercise is done seated"}</div><button class="w" data-go="session:${e.id}">Start exercise</button>`},
+session(){const e=exOf(R.id);if(!SESS)return `<h1>Before you start: ${e.name}</h1><div class="bx"><label class="chk"><input type="checkbox" class="ck"><span>The area is clear and non-slip, with a sturdy chair or handrail</span></label><label class="chk"><input type="checkbox" class="ck"><span>A physiotherapist or doctor has approved this exercise for me</span></label>${e.sup?`<label class="chk"><input type="checkbox" class="ck"><span>A carer is nearby throughout the exercise</span></label>`:""}<label class="chk"><input type="checkbox" class="ck"><span>I feel ready and will stop immediately if I feel unwell</span></label></div><div class="note">The demo is a prototype, not a certified exercise</div><div class="row"><button class="ln g" data-go="detail:${e.id}">Back</button><button class="g" id="st" disabled>Start exercise</button></div>`;
+ return `<h2 style="margin-top:0">${e.name}</h2><div id="pv"></div><div class="bx row"><div class="g"><div class="mu">Time</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">Rep</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">Pause</button><button class="dg g" id="en">End exercise</button></div>`},
+done(){const s=DB.sessions[DB.sessions.length-1];if(!s)return PG.home();return `<h1>${s.status=="completed"?"Well done":"Exercise saved"}</h1><div class="bx"><b>${esc(exOf(s.ex).name)}</b><div class="mu">Time ${fmt(s.dur)} · ${s.reps} reps · ${s.status=="completed"?"Completed as planned":"Stopped early"}</div></div><div class="row"><button class="g" data-go="prog">View progress</button><button class="ln g" data-go="home">Back to home</button></div>`},
 prog(){const ds=days(),v=ds.map(d=>Math.round(DB.sessions.filter(s=>sameDay(s.start,d)).reduce((a,s)=>a+s.dur,0)/60)),mx=Math.max(5,...v),cnt={};DB.sessions.forEach(s=>cnt[s.ex]=(cnt[s.ex]||0)+1);const fav=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
- if(!DB.sessions.length)return `<h1>ความก้าวหน้า</h1><div class="bx"><h3>ยังไม่มีข้อมูล</h3><p class="mu">เมื่อฝึกครั้งแรก ประวัติและกราฟรายสัปดาห์จะแสดงที่นี่</p><button data-go="lib">เลือกท่าฝึก</button></div>`;
- return `<h1>ความก้าวหน้า</h1><p class="mu">บันทึกตามสถานะจริง ไม่ใช่คะแนนประเมินโรค</p><div class="bx row"><div class="g"><div class="big">${DB.sessions.length}</div><div class="mu">ครั้งที่ฝึก</div></div><div class="g"><div class="big">${Math.round(DB.sessions.reduce((a,s)=>a+s.dur,0)/60)}</div><div class="mu">นาทีรวม</div></div></div>
- <div class="bx"><h3>เวลาฝึก 7 วัน (นาที)</h3><svg viewBox="0 0 280 130" width="100%" role="img" aria-label="กราฟเวลาฝึกรายวัน">${v.map((x,i)=>`<rect x="${i*40+8}" y="${100-x/mx*90}" width="26" height="${x/mx*90}" rx="5" fill="var(--pr)"/><text x="${i*40+21}" y="94" font-size="0"></text><text x="${i*40+21}" y="118" text-anchor="middle" font-size="11" fill="var(--mu)">${ds[i].toLocaleDateString("th-TH",{weekday:"narrow"})}</text><text x="${i*40+21}" y="${96-x/mx*90}" text-anchor="middle" font-size="11" fill="var(--ink)">${x||""}</text>`).join("")}</svg></div>
- ${fav?`<div class="bx">ท่าที่ฝึกบ่อย: <b>${esc(exOf(fav[0]).name)}</b> (${fav[1]} ครั้ง)</div>`:""}<h2>ประวัติ</h2>${DB.sessions.slice(-15).reverse().map(s=>`<div class="bx"><b>${esc(exOf(s.ex).name)}</b> <span class="tag${s.status=="completed"?"":" w2"}">${s.status=="completed"?"ครบ":"หยุดก่อน"}</span><div class="mu">${new Date(s.start).toLocaleString("th-TH")} · ${fmt(s.dur)} · ${s.reps} ครั้ง</div></div>`).join("")}`},
-care(){return `<h1>ผู้ดูแลและนักกายภาพ</h1><div class="note"><b>ข้อมูลตัวอย่างเพื่อสาธิต</b> ยังไม่มีการเชื่อมต่อหรือส่งข้อมูลไปยังบุคคลอื่น ข้อมูลการฝึกอยู่ในเครื่องนี้เท่านั้น</div>
- <div class="bx"><h3>ผู้ดูแล (ตัวอย่าง)</h3><div class="mu">คุณสมศรี · ลูกสาว</div></div><div class="bx"><h3>นักกายภาพ (ตัวอย่าง)</h3><div class="mu">คุณนักกายภาพ ตัวอย่าง · โรงพยาบาลตัวอย่าง</div></div>
- <h2>โปรแกรมที่ได้รับมอบหมาย (ตัวอย่าง)</h2>${EX.map(e=>`<div class="bx row"><div class="g"><b>${e.name}</b><div class="mu">${TARGET} ครั้ง · ${e.sup?"ต้องมีผู้ดูแล":"ฝึกขณะนั่ง"}</div></div><span class="tag w2">ยังไม่ได้รับการตรวจสอบ</span></div>`).join("")}
- <div class="bx"><h3>รายงานสรุป</h3><p class="mu">ในอนาคต ผู้ใช้จะเลือกแชร์สรุปให้นักกายภาพได้เมื่อยินยอมเท่านั้น ตอนนี้ยังไม่เปิดใช้</p><button class="ln w" data-go="prog">ดูประวัติของฉัน</button></div>`},
-learn(){return `<button class="ln" data-go="home" style="min-height:44px">‹ กลับ</button><h1>ศูนย์ความรู้</h1><p class="mu">เปิดวิดีโอจากเว็บไซต์ต้นทางโดยตรง PIZZA ไม่คัดลอกหรือฝังวิดีโอ</p>
- ${[["วิดีโอศูนย์ความเป็นเลิศโรคพาร์กินสัน จุฬาฯ","chulapd.org","คลังวิดีโอภาษาไทยเกี่ยวกับโรคพาร์กินสันและการดูแลตนเอง","https://www.chulapd.org/videos","ความรู้ทั่วไป"],["Exercise – Parkinson’s Foundation","parkinson.org","แนวทางและตัวอย่างการออกกำลังกายสำหรับผู้ป่วยพาร์กินสัน (ภาษาอังกฤษ)","https://www.parkinson.org/living-with-parkinsons/treatment/exercise","การออกกำลังกาย"]].map(r=>`<div class="bx"><span class="tag">${r[4]}</span><h3 style="margin-top:6px">${r[0]}</h3><div class="mu">แหล่งที่มา: ${r[1]}</div><p>${r[2]}</p><a class="bt ln w" href="${r[3]}" target="_blank" rel="noopener noreferrer">เปิดเว็บไซต์ต้นทาง ↗</a></div>`).join("")}`},
-set(){return `<h1>โปรไฟล์และความเป็นส่วนตัว</h1><div class="bx"><label for="nm"><b>ชื่อที่ให้เรียก</b></label><br><input id="nm" value="${esc(DB.set.name)}" maxlength="30" style="font:inherit;width:100%;padding:12px;border-radius:12px;border:2px solid var(--ln);background:var(--bg);color:var(--ink);margin-top:6px"></div>
- <div class="bx"><b>ขนาดตัวอักษร</b><div class="ctl"><span class="seg" id="fs">${[["ปกติ",1],["ใหญ่",1.2],["ใหญ่มาก",1.4]].map(a=>`<button data-v="${a[1]}" class="${DB.set.fs==a[1]?"on":""}">${a[0]}</button>`).join("")}</span></div></div>
- <div class="bx"><label class="chk"><input type="checkbox" id="vc" ${DB.set.voice?"checked":""}><span><b>เสียงบรรยายภาษาไทย</b><br><span class="mu">ขึ้นกับเสียงที่เครื่องรองรับ</span></span></label></div>
- <div class="bx"><h3>ความเป็นส่วนตัว</h3><p class="mu">ข้อมูลการฝึกเก็บในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่มีบัญชี ไม่ส่งข้อมูลหรือภาพไปเซิร์ฟเวอร์ หากล้างข้อมูลเบราว์เซอร์ ประวัติจะหายไป</p><button class="dg w" id="clr">ลบข้อมูลในเครื่องทั้งหมด</button></div>
- <div class="note">PIZZA เป็นเครื่องมือสนับสนุนกิจกรรม ไม่ใช่เครื่องมือวินิจฉัยหรือรักษาโรค ภาพสาธิตเป็นต้นแบบที่ยังไม่ผ่านการตรวจสอบโดยผู้เชี่ยวชาญ</div>`}
+ if(!DB.sessions.length)return `<h1>Progress</h1><div class="bx"><h3>No data yet</h3><p class="mu">After your first exercise, your history and weekly chart will appear here.</p><button data-go="lib">Choose an exercise</button></div>`;
+ return `<h1>Progress</h1><p class="mu">Recorded as actually done, not a disease assessment score</p><div class="bx row"><div class="g"><div class="big">${DB.sessions.length}</div><div class="mu">Sessions</div></div><div class="g"><div class="big">${Math.round(DB.sessions.reduce((a,s)=>a+s.dur,0)/60)}</div><div class="mu">Total minutes</div></div></div>
+ <div class="bx"><h3>Exercise time, last 7 days (minutes)</h3><svg viewBox="0 0 280 130" width="100%" role="img" aria-label="Daily exercise time chart">${v.map((x,i)=>`<rect x="${i*40+8}" y="${100-x/mx*90}" width="26" height="${x/mx*90}" rx="5" fill="var(--pr)"/><text x="${i*40+21}" y="94" font-size="0"></text><text x="${i*40+21}" y="118" text-anchor="middle" font-size="11" fill="var(--mu)">${ds[i].toLocaleDateString("en-US",{weekday:"narrow"})}</text><text x="${i*40+21}" y="${96-x/mx*90}" text-anchor="middle" font-size="11" fill="var(--ink)">${x||""}</text>`).join("")}</svg></div>
+ ${fav?`<div class="bx">Most frequent exercise: <b>${esc(exOf(fav[0]).name)}</b> (${fav[1]} reps)</div>`:""}<h2>History</h2>${DB.sessions.slice(-15).reverse().map(s=>`<div class="bx"><b>${esc(exOf(s.ex).name)}</b> <span class="tag${s.status=="completed"?"":" w2"}">${s.status=="completed"?"Done":"Stopped"}</span><div class="mu">${new Date(s.start).toLocaleString("en-US")} · ${fmt(s.dur)} · ${s.reps} reps</div></div>`).join("")}`},
+care(){return `<h1>Carers and physiotherapists</h1><div class="note"><b>Sample data for demonstration</b> Nothing is connected or sent to anyone else yet. Your exercise data stays on this device only.</div>
+ <div class="bx"><h3>Carer (sample)</h3><div class="mu">Somsri · Daughter</div></div><div class="bx"><h3>Physiotherapist (sample)</h3><div class="mu">Sample Physiotherapist · Sample Hospital</div></div>
+ <h2>Assigned program (sample)</h2>${EX.map(e=>`<div class="bx row"><div class="g"><b>${e.name}</b><div class="mu">${TARGET} reps · ${e.sup?"Carer required":"Seated exercise"}</div></div><span class="tag w2">Not yet reviewed</span></div>`).join("")}
+ <div class="bx"><h3>Summary report</h3><p class="mu">In the future, you will be able to share a summary with your physiotherapist, only with your consent. Not enabled yet.</p><button class="ln w" data-go="prog">View my history</button></div>`},
+learn(){return `<button class="ln" data-go="home" style="min-height:44px">‹ Back</button><h1>Knowledge center</h1><p class="mu">Videos open directly from the source website. PIZZA does not copy or embed videos.</p>
+ ${[["Chulalongkorn Parkinson Center of Excellence videos","chulapd.org","Thai-language video library on Parkinson's disease and self-care","https://www.chulapd.org/videos","General knowledge"],["Exercise – Parkinson’s Foundation","parkinson.org","Guidelines and examples of exercise for people with Parkinson's (in English)","https://www.parkinson.org/living-with-parkinsons/treatment/exercise","Exercise"]].map(r=>`<div class="bx"><span class="tag">${r[4]}</span><h3 style="margin-top:6px">${r[0]}</h3><div class="mu">Source: ${r[1]}</div><p>${r[2]}</p><a class="bt ln w" href="${r[3]}" target="_blank" rel="noopener noreferrer">Open the source website ↗</a></div>`).join("")}`},
+set(){return `<h1>Profile and privacy</h1><div class="bx"><label for="nm"><b>Preferred name</b></label><br><input id="nm" value="${esc(DB.set.name)}" maxlength="30" style="font:inherit;width:100%;padding:12px;border-radius:12px;border:2px solid var(--ln);background:var(--bg);color:var(--ink);margin-top:6px"></div>
+ <div class="bx"><b>Font size</b><div class="ctl"><span class="seg" id="fs">${[["Normal",1],["Large",1.2],["Extra large",1.4]].map(a=>`<button data-v="${a[1]}" class="${DB.set.fs==a[1]?"on":""}">${a[0]}</button>`).join("")}</span></div></div>
+ <div class="bx"><label class="chk"><input type="checkbox" id="vc" ${DB.set.voice?"checked":""}><span><b>English voice narration</b><br><span class="mu">Depends on the voices your device supports</span></span></label></div>
+ <div class="bx"><h3>Privacy</h3><p class="mu">Exercise data is stored in this device's browser only. No account, and no data or images are sent to a server. If you clear browser data, your history will be lost.</p><button class="dg w" id="clr">Delete all data on this device</button></div>
+ <div class="note">PIZZA is an activity-support tool, not a tool to diagnose or treat disease. The demo figures are prototypes that have not yet been reviewed by an expert.</div>`}
 };
 const TARGET=5,STITLE={detail:1,session:1,done:1};
 function after(){
@@ -245,15 +245,15 @@ function after(){
  if(p=="detail")player(pv,e,{speak:false});
  if(p=="session"){
   if(!SESS){const ck=[...document.querySelectorAll(".ck")],b=$("#st");ck.forEach(c=>c.onchange=()=>b.disabled=!ck.every(x=>x.checked));b.onclick=()=>{SESS={ex:e.id,start:new Date().toISOString(),el:0,reps:0,paused:false};render()};return}
-  let ctl;const fin=st=>{const s=SESS;SESS=null;stopAll();DB.sessions.push({ex:s.ex,start:s.start,dur:Math.round(s.el),reps:s.reps,status:st});save();speak(st=="completed"?"จบการฝึกแล้ว ทำได้ดีมาก":"บันทึกการฝึกแล้ว");go("done")};
-  ctl=player(pv,e,{ctl:false,speak:true,onLoop(){if(SESS&&!SESS.paused){SESS.reps++;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("ครั้งที่ "+SESS.reps);if(SESS.reps>=TARGET)fin("completed")}}});
+  let ctl;const fin=st=>{const s=SESS;SESS=null;stopAll();DB.sessions.push({ex:s.ex,start:s.start,dur:Math.round(s.el),reps:s.reps,status:st});save();speak(st=="completed"?"Exercise finished, well done":"Exercise saved");go("done")};
+  ctl=player(pv,e,{ctl:false,speak:true,onLoop(){if(SESS&&!SESS.paused){SESS.reps++;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("Rep "+SESS.reps);if(SESS.reps>=TARGET)fin("completed")}}});
   TICK=setInterval(()=>{if(SESS&&!SESS.paused){SESS.el+=.25;$("#tm").textContent=fmt(SESS.el)}},250);
-  $("#ps").onclick=()=>{SESS.paused=!SESS.paused;SESS.paused?ctl.pause():ctl.resume();$("#ps").textContent=SESS.paused?"ทำต่อ":"หยุดชั่วคราว"};
-  $("#en").onclick=async()=>{ctl.pause();SESS.paused=true;if(await ask("จบการฝึกตอนนี้? ระบบจะบันทึกตามที่ทำจริง","จบการฝึก"))fin(SESS.reps>=TARGET?"completed":"stopped");else{SESS.paused=false;ctl.resume();$("#ps").textContent="หยุดชั่วคราว"}};
+  $("#ps").onclick=()=>{SESS.paused=!SESS.paused;SESS.paused?ctl.pause():ctl.resume();$("#ps").textContent=SESS.paused?"Resume":"Pause"};
+  $("#en").onclick=async()=>{ctl.pause();SESS.paused=true;if(await ask("End the exercise now? It will be saved as actually done.","End exercise"))fin(SESS.reps>=TARGET?"completed":"stopped");else{SESS.paused=false;ctl.resume();$("#ps").textContent="Pause"}};
  }
  if(p=="set"){$("#nm").oninput=ev=>{DB.set.name=ev.target.value;save()};$("#vc").onchange=ev=>{DB.set.voice=ev.target.checked;save()};
   $("#fs").onclick=ev=>{const v=ev.target.dataset.v;if(!v)return;DB.set.fs=+v;save();document.documentElement.style.fontSize=v*100+"%";[...$("#fs").children].forEach(b=>b.classList.toggle("on",b==ev.target))};
-  $("#clr").onclick=async()=>{if(await ask("ลบประวัติและการตั้งค่าทั้งหมดในเครื่องนี้? ไม่สามารถกู้คืนได้","ลบทั้งหมด")){DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};try{localStorage.removeItem(KEY)}catch(x){}document.documentElement.style.fontSize="100%";R.ob=0;go("onb")}}}
+  $("#clr").onclick=async()=>{if(await ask("Delete all history and settings on this device? This cannot be undone.","Delete all")){DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};try{localStorage.removeItem(KEY)}catch(x){}document.documentElement.style.fontSize="100%";R.ob=0;go("onb")}}}
 }
 function render(){
  stopAll();speechSynthesis&&speechSynthesis.cancel&&speechSynthesis.cancel();
@@ -267,7 +267,7 @@ function render(){
 }
 document.addEventListener("click",async e=>{
  const g=e.target.closest("[data-go]");if(g){const [p,id]=g.dataset.go.split(":");
-  if(SESS&&R.p=="session"&&p!="session"){if(!(await ask("กำลังฝึกอยู่ ต้องการออกและบันทึกตามที่ทำจริงหรือไม่?","ออกและบันทึก")))return;DB.sessions.push({ex:SESS.ex,start:SESS.start,dur:Math.round(SESS.el),reps:SESS.reps,status:"stopped"});save();SESS=null}
+  if(SESS&&R.p=="session"&&p!="session"){if(!(await ask("You're exercising. Exit and save what you actually did?","Exit and save")))return;DB.sessions.push({ex:SESS.ex,start:SESS.start,dur:Math.round(SESS.el),reps:SESS.reps,status:"stopped"});save();SESS=null}
   go(p,id);return}
  const a=e.target.closest("[data-act]");if(!a)return;
  if(a.dataset.act=="obn"){if(R.ob<2){R.ob++;render()}else{DB.set.onb=true;save();go("home")}}

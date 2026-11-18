@@ -1,15 +1,15 @@
-// นักกายภาพแก้ไขท่าและเกณฑ์ที่ไฟล์นี้ (ต่อไปควรย้ายไปฐานข้อมูล)
+// Physiotherapists edit exercises and thresholds in this file (should later move to a database)
 export const MOVES = [
-  { id: 'arm-raise', name: 'ยกแขนสูง', group: 'ท่ากว้าง', needsCarer: false,
+  { id: 'arm-raise', name: 'High arm raise', group: 'Wide movements', needsCarer: false,
     metric: 'shoulder-angle', targetAngle: 150, reps: 10,
-    steps: ['นั่งหลังตรง เท้าวางพื้น', 'ยกแขนสองข้างเหนือศีรษะให้ใหญ่ที่สุด', 'ค้างนับ 1–2 แล้วลดลงช้า ๆ', 'ทำ 10 ครั้ง'],
+    steps: ['Sit upright with feet flat on the floor', 'Raise both arms overhead as high as you can', 'Hold for a count of 1–2, then lower slowly', 'Do 10 reps'],
     clipQuery: 'LSVT BIG exercises Parkinson seated big arm raise' },
-  { id: 'sit-stand', name: 'ลุก–นั่งจากเก้าอี้', group: 'ลุก–นั่ง', needsCarer: true,
+  { id: 'sit-stand', name: 'Sit-to-stand from a chair', group: 'Sit-to-stand', needsCarer: true,
     metric: 'knee-angle', targetAngle: 160, reps: 5,
-    steps: ['ใช้เก้าอี้มั่นคงไม่มีล้อ ชิดผนัง', 'โน้มตัวไปหน้า ดันเท้าลุกยืนเต็มที่', 'ยืนนิ่ง 1 วินาที แล้วนั่งลงช้า ๆ', 'ทำ 5 ครั้ง'],
+    steps: ['Use a stable chair without wheels, against a wall', 'Lean forward and push through your feet to stand up fully', 'Stand still for 1 second, then sit down slowly', 'Do 5 reps'],
     clipQuery: 'sit to stand exercise Parkinson disease physiotherapy' },
-  { id: 'big-step', name: 'ก้าวยาว เดินเป็นจังหวะ', group: 'เดิน', needsCarer: true,
+  { id: 'big-step', name: 'Long steps, rhythmic walking', group: 'Walking', needsCarer: true,
     metric: 'step-length', targetAngle: 0, reps: 10,
-    steps: ['ยืนใกล้ราวหรือผู้ดูแล', 'ก้าวเท้าให้ยาว ส้นแตะพื้นก่อน', 'แกว่งแขนสวนกับขา', 'เดิน 10 ก้าว หยุดทันทีถ้าติดขัด'],
+    steps: ['Stand near a handrail or your carer', 'Take long steps, heel touching the floor first', 'Swing your arms opposite to your legs', 'Walk 10 steps; stop immediately if you feel stuck'],
     clipQuery: 'Parkinson walking big steps exercise physiotherapy' },
 ]

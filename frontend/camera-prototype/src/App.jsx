@@ -4,7 +4,7 @@ import Moves from './pages/Moves.jsx'
 import Practice from './pages/Practice.jsx'
 import Report from './pages/Report.jsx'
 import Community from './pages/Community.jsx'
-const TABS = [['home', 'หน้าหลัก'], ['moves', 'ท่าฝึก'], ['community', 'ชุมชน'], ['report', 'ผลฝึก']]
+const TABS = [['home', 'Home'], ['moves', 'Exercises'], ['community', 'Community'], ['report', 'Results']]
 export default function App() {
   const [page, go] = useState('home'), [move, pick] = useState(null)
   const nav = p => { go(p); window.scrollTo(0, 0) }

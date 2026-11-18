@@ -1,26 +1,26 @@
 # PIZZA – Parkinson's · In-home · Zestful · Zero-fall · Activity coach
 
-แอป PWA (React + Vite) ตรวจท่ากายภาพผ่านกล้องบนมือถือ ประมวลผลบนเครื่อง ไม่ส่งวิดีโอขึ้นคลาวด์
+A PWA (React + Vite) that checks physiotherapy exercises through the phone camera. Processing happens on the device; video is never sent to the cloud.
 
-## รันในเครื่อง
+## Run locally
 1. `npm install`
-2. ดาวน์โหลด `pose_landmarker_lite.task` (MediaPipe Pose Landmarker) วางที่ `public/models/`
-3. `npm run dev` แล้วเปิดบนมือถือผ่าน HTTPS (กล้องต้องใช้ HTTPS หรือ localhost)
+2. Download `pose_landmarker_lite.task` (MediaPipe Pose Landmarker) and place it in `public/models/`
+3. `npm run dev`, then open it on a phone over HTTPS (the camera requires HTTPS or localhost)
 
 ## Deploy (Vercel)
-`git init` → push GitHub → Import ที่ vercel.com (Framework: Vite, build `npm run build`, output `dist`) ไฟล์ `vercel.json` ตั้ง SPA rewrite ให้แล้ว
+`git init` → push to GitHub → import at vercel.com (Framework: Vite, build `npm run build`, output `dist`). `vercel.json` already sets the SPA rewrite.
 
-## ที่ทำแล้ว
-UI 5 หน้า, ตัวอย่างท่า + ลิงก์คลิป, กล้อง + ตัวนับครั้ง (ท่ายกแขน) + เสียงพูดไทย, บันทึกผลในเครื่อง, ด่านยืนยันผู้ดูแลก่อนท่าเสี่ยงล้ม
+## Done so far
+5 UI pages, exercise previews + clip links, camera + rep counter (arm raise) + spoken cues, results saved on the device, carer confirmation gate before fall-risk exercises
 
-## งานที่ต้องทำต่อ (เรียงลำดับ)
-1. เพิ่มตัววัดท่าลุก–นั่ง (เข่า/สะโพก) และก้าวเดิน ใน `src/lib/pose.js` และปรับ `Practice.jsx` ให้เลือกตัววัดตาม `move.metric`
-2. กรองสัญญาณสั่น (low-pass/median) ก่อนคำนวณมุม และเทียบกับค่าพื้นฐานรายบุคคล แยก ON/OFF
-3. Backend (แนะนำ Supabase): ล็อกอิน บทบาท ผู้ป่วย/ผู้ดูแล/นักกายภาพ, ตารางผลฝึก, นักกายภาพกำหนดชุดท่า
-4. ใส่คลิปสอนที่นักกายภาพอนุมัติ (ฝังเล่นใน `Moves.jsx`) แทนลิงก์ค้นหา YouTube
-5. หน้าลงทะเบียนและขอความยินยอมตาม PDPA, ลบข้อมูลได้
-6. ชุมชนคลิป: อัปโหลด เบลอใบหน้า ตรวจเนื้อหา ลิขสิทธิ์เพลง
-7. ไอคอน PWA, service worker, ทดสอบกับนักกายภาพ 3–5 ท่านและผู้ป่วยจริง
+## Next steps (in order)
+1. Add measurements for sit-to-stand (knee/hip) and walking steps in `src/lib/pose.js`, and update `Practice.jsx` to choose the measurement by `move.metric`
+2. Filter tremor noise (low-pass/median) before computing angles, and compare against a per-person baseline, separating ON/OFF
+3. Backend (Supabase recommended): login, roles (patient/carer/physiotherapist), session results table, physiotherapist-assigned exercise sets
+4. Add physiotherapist-approved tutorial clips (embedded in `Moves.jsx`) instead of YouTube search links
+5. Registration page and PDPA consent, with data deletion
+6. Community clips: upload, face blurring, content moderation, music copyright
+7. PWA icons, service worker, testing with 3–5 physiotherapists and real patients
 
-## ข้อควรระวัง
-วางตำแหน่งเป็นเครื่องมือส่งเสริมสุขภาพ ไม่อ้างผลการรักษา (หากอ้างผลทางคลินิกต้องตรวจสอบเรื่องเครื่องมือแพทย์กับ อย.) ยังไม่ได้ทดสอบ build ในสภาพแวดล้อมนี้
+## Cautions
+Positioned as a wellness-support tool; it makes no treatment claims (any clinical claim requires a medical-device review with the Thai FDA). The build has not been tested in this environment.

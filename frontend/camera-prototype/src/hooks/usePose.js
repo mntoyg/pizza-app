@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'
-// ประมวลผลบนเครื่อง วิดีโอไม่ถูกส่งออก ดาวน์โหลดโมเดลไว้ที่ public/models/ (ดู README)
+// Runs on the device; video is never sent out. Put the downloaded model in public/models/ (see README)
 export function usePose(videoRef, onLandmarks, active) {
   const [status, setStatus] = useState('idle'), cb = useRef(onLandmarks)
   cb.current = onLandmarks

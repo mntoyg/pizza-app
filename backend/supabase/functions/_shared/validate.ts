@@ -108,6 +108,70 @@ export function parseSessionsBatch(body: unknown): SessionRow[] {
   return rows;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID.test(v);
+
+export type CareLinksRequest =
+  | { action: 'invite'; role: 'carer' | 'physio'; email: string | null }
+  | { action: 'accept'; code: string }
+  | { action: 'revoke'; linkId: string };
+
+/** Validates a care-links request. The caller is always taken from the token, never the body. */
+export function parseCareLinksBody(body: unknown): CareLinksRequest {
+  if (!isObject(body)) throw new ValidationError('Body must be an object');
+  switch (body['action']) {
+    case 'invite': {
+      onlyKeys(body, ['action', 'role', 'email'], 'invite');
+      const { role, email } = body;
+      if (role !== 'carer' && role !== 'physio') throw new ValidationError('role invalid');
+      if (email !== undefined && email !== null && !shortString(email, 254)) {
+        throw new ValidationError('email invalid');
+      }
+      return { action: 'invite', role, email: typeof email === 'string' ? email : null };
+    }
+    case 'accept': {
+      onlyKeys(body, ['action', 'code'], 'accept');
+      if (!shortString(body['code'], 64)) throw new ValidationError('code invalid');
+      return { action: 'accept', code: body['code'] };
+    }
+    case 'revoke': {
+      onlyKeys(body, ['action', 'linkId'], 'revoke');
+      if (!isUuid(body['linkId'])) throw new ValidationError('linkId invalid');
+      return { action: 'revoke', linkId: body['linkId'] };
+    }
+    default:
+      throw new ValidationError('action must be invite, accept or revoke');
+  }
+}
+
+export interface PatientSummaryRequest {
+  patientId: string;
+  from?: string;
+  to?: string;
+}
+
+const optionalInstant = (v: unknown, name: string): string | undefined => {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'string' || !ISO_UTC.test(v) || Number.isNaN(Date.parse(v))) {
+    throw new ValidationError(`${name} must be an ISO-8601 UTC timestamp`);
+  }
+  return new Date(v).toISOString();
+};
+
+/** Validates a patient-summary request. The range limits are enforced by the database. */
+export function parsePatientSummaryBody(body: unknown): PatientSummaryRequest {
+  if (!isObject(body)) throw new ValidationError('Body must be an object');
+  onlyKeys(body, ['patientId', 'from', 'to'], 'body');
+  if (!isUuid(body['patientId'])) throw new ValidationError('patientId invalid');
+  const from = optionalInstant(body['from'], 'from');
+  const to = optionalInstant(body['to'], 'to');
+  return {
+    patientId: body['patientId'],
+    ...(from !== undefined ? { from } : {}),
+    ...(to !== undefined ? { to } : {}),
+  };
+}
+
 /**
  * Validates a consent update. Timestamps and the owner are deliberately not accepted:
  * the database stamps server time and takes the owner from the caller's JWT.

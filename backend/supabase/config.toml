@@ -64,3 +64,9 @@ verify_jwt = true
 
 [functions.delete-me]
 verify_jwt = true
+
+[functions.care-links]
+verify_jwt = true
+
+[functions.patient-summary]
+verify_jwt = true

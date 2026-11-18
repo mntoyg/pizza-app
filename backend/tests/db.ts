@@ -18,6 +18,7 @@ const SUPABASE_STUB = `
   create table auth.users (
     id uuid primary key default gen_random_uuid(),
     email text,
+    email_confirmed_at timestamptz,
     is_anonymous boolean not null default false,
     created_at timestamptz not null default now()
   );
@@ -76,7 +77,24 @@ export const asUser = <T>(db: PGlite, userId: string, fn: () => Promise<T>) =>
   as(db, 'authenticated', userId, fn);
 
 export async function createUser(db: PGlite, id: string, email = `${id}@example.test`) {
-  await db.query('insert into auth.users (id, email) values ($1, $2)', [id, email]);
+  await db.query('insert into auth.users (id, email, email_confirmed_at) values ($1, $2, now())', [
+    id,
+    email,
+  ]);
+}
+
+/** Mirrors the account states Supabase Auth can produce: anonymous, or an unconfirmed email. */
+export async function createUserWith(
+  db: PGlite,
+  id: string,
+  options: { email?: string | null; anonymous?: boolean; confirmed?: boolean } = {},
+) {
+  const { email = null, anonymous = false, confirmed = true } = options;
+  await db.query(
+    `insert into auth.users (id, email, email_confirmed_at, is_anonymous)
+     values ($1, $2, case when $3::boolean then now() end, $4)`,
+    [id, email, confirmed, anonymous],
+  );
 }
 
 export const A = '00000000-0000-4000-8000-00000000000a';

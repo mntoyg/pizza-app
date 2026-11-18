@@ -67,6 +67,37 @@ export async function readJsonBody(req: Request): Promise<BodyResult> {
   }
 }
 
+/**
+ * Calls a database function through PostgREST as the signed-in user. The function itself decides
+ * who may do what; this layer only validates input and translates answers.
+ */
+export function rpc(
+  env: Env,
+  token: string,
+  fn: string,
+  args: Record<string, unknown>,
+  fetchFn: typeof fetch,
+): Promise<Response> {
+  return postgrest(env, token, `rpc/${fn}`, 'return=representation', args, fetchFn);
+}
+
+/**
+ * Turns a failed rpc into our response. Only refusals listed in `known` (the database's own
+ * short codes) are passed on; anything else becomes a generic 502 so internals never leak.
+ */
+export async function rpcFailure(
+  res: Response,
+  known: Readonly<Record<string, number>>,
+): Promise<Response> {
+  if (res.status === 401) return errorResponse(401, 'unauthorized');
+  const body = (await res.json().catch(() => null)) as { message?: unknown } | null;
+  const message = typeof body?.message === 'string' ? body.message : '';
+  const status = Object.hasOwn(known, message) ? known[message] : undefined;
+  return status === undefined
+    ? errorResponse(502, 'upstream_error')
+    : errorResponse(status, message);
+}
+
 /** Calls PostgREST as the signed-in user, so row level security stays in force. */
 export function postgrest(
   env: Env,

@@ -25,3 +25,7 @@ GEMINI.md
 *.log
 .vscode/
 Thumbs.db
+
+# --- supabase local state ---
+backend/supabase/.temp/
+backend/supabase/.branches/

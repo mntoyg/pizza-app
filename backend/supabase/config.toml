@@ -31,12 +31,26 @@ enable_signup = true
 enable_anonymous_sign_ins = true
 
 [auth.email]
-enable_signup = true
+enabled = true
 enable_confirmations = true
 double_confirm_changes = true
 # Six-digit codes: easy for older users, no password to remember.
 otp_length = 6
 otp_expiry = 3600
+
+# Show the six-digit code ({{ .Token }}) instead of a link: easier for older users.
+# NOTE: on a hosted project these templates must be set in the dashboard / config push.
+[auth.email.template.confirmation]
+subject = "Your PIZZA sign-up code"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.magic_link]
+subject = "Your PIZZA sign-in code"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Your PIZZA email confirmation code"
+content_path = "./supabase/templates/email_change.html"
 
 [auth.rate_limit]
 anonymous_users = 30

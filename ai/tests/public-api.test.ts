@@ -42,6 +42,10 @@ describe('public API surface', () => {
       'EN_MESSAGES',
       'LANDMARK',
       'DEFAULT_EXERCISES',
+      'createPizzaCore',
+      'openStorage',
+      'createMediaPipeBackend',
+      'CONSENT_PURPOSES',
     ]) {
       expect(api, name).toHaveProperty(name);
     }

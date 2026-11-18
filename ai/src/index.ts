@@ -43,3 +43,38 @@ export { EN_MESSAGES } from './coach/messages/en';
 export { DEFAULT_EXERCISES } from './exercises/defaults';
 export type { ApprovalStatus, Exercise, ExerciseCriteria } from './types/exercise';
 export type { Landmark } from './types/landmark';
+
+export { createPizzaCore } from './core/pizza-core';
+export type { DeleteResult, PizzaCore, PizzaCoreOptions, SyncResult } from './core/pizza-core';
+export { openStorage } from './core/open-storage';
+export type { OpenStorageOptions, StorageMode } from './core/open-storage';
+export { openIdbStorage } from './core/idb-storage';
+export { createMemoryStorage } from './core/storage';
+export { createMediaPipeBackend } from './core/pose-backend';
+export type {
+  LandmarkerLike,
+  MediaDevicesLike,
+  MediaPipeBackendOptions,
+  PoseBackend,
+  VisionModule,
+} from './core/pose-backend';
+export { defaultScheduler } from './core/pose-controller';
+export type {
+  PoseController,
+  PoseHandlers,
+  PoseStartOptions,
+  PoseSummary,
+  Scheduler,
+} from './core/pose-controller';
+export { CONSENT_PURPOSES } from './core/types';
+export type {
+  ConsentPurpose,
+  ConsentRecord,
+  DateRange,
+  ExportedData,
+  SessionInput,
+  SessionStatus,
+  Storage,
+  StoredSession,
+  SyncTransport,
+} from './core/types';

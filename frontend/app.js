@@ -101,7 +101,7 @@ function makeFig(view){
    T(q("#A0f"),`translate(0 58) rotate(${-e})`);T(q("#A1f"),`translate(0 58) rotate(${e})`);
    q("#chair").setAttribute("opacity",p.h>1?1:.0);
   }else{
-   const px=-(82*Math.sin(r(p.h))+78*Math.sin(r(p.h-p.k))),py=-(82*Math.cos(r(p.h))+78*Math.cos(r(p.h-p.k))+8);
+   const px= -(82*Math.sin(r(p.h))+78*Math.sin(r(p.h-p.k))),py= -(82*Math.cos(r(p.h))+78*Math.cos(r(p.h-p.k))+8);
    T(q("#bd"),`translate(${px} ${py})`);
    qa(".tg").forEach(e=>T(e,`rotate(${-p.h})`));qa(".sg").forEach(e=>T(e,`translate(0 82) rotate(${p.k})`));qa(".fg").forEach(e=>T(e,`translate(0 78) rotate(${p.h-p.k})`));
    T(q("#tr"),`rotate(${p.lean}) scale(${1+.35*Math.abs(Math.sin(r(p.tw)))} 1)`);
@@ -248,7 +248,7 @@ function after(){
  if(p=="detail")player(pv,e,{speak:false});
  if(p=="session"){
   if(!SESS){const ck=[...document.querySelectorAll(".ck")],b=$("#st");ck.forEach(c=>c.onchange=()=>b.disabled=!ck.every(x=>x.checked));b.onclick=()=>{const why=camBlocker(e.id);SESS={ex:e.id,start:new Date().toISOString(),el:0,reps:0,paused:false,cam:!why,camNote:why,stage:why?"run":"frame"};render()};return}
-  if(SESS.cam){startCam(e);return}
+  if(SESS.cam){void startCam(e);return}
   let ctl;const fin=finishSession;
   ctl=player(pv,e,{ctl:false,speak:true,onLoop(){if(SESS&&!SESS.paused){SESS.reps++;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("Rep "+SESS.reps);if(SESS.reps>=TARGET)fin("completed")}}});
   tickTimer();
@@ -280,4 +280,4 @@ document.addEventListener("click",async e=>{
 });
 document.documentElement.style.fontSize=(DB.set.fs||1)*100+"%";
 render();
-initCore();
+void initCore();

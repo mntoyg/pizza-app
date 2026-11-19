@@ -21,6 +21,7 @@
     "e2e": "node scripts/e2e-local.mjs",
     "e2e:upgrade": "node scripts/e2e-upgrade-account.mjs",
     "e2e:care": "node scripts/e2e-care-links.mjs",
+    "e2e:client": "node scripts/e2e-client-sync.mjs",
     "admin:set-role": "node scripts/set-role.mjs"
   },
   "devDependencies": {

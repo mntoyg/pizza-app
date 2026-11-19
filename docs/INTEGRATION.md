@@ -1,6 +1,7 @@
 # Integrating the PIZZA backend + AI into the UI
 
-For the UI team. Nothing here has been plugged into `frontend/` yet — you choose when to adopt it.
+For the UI team. `frontend/index.html` now uses `PizzaCore` for the **arm-raise** session (on-device camera counting, framing step, session storage in IndexedDB). A tester reported it working with a real camera through the app's session page (one person; counts were not recorded). Everything else described here is still available but not wired into the UI yet.
+The PizzaCore and MediaPipe files it loads are in `frontend/vendor/` (see `frontend/vendor/README.md`); rebuild and copy `pizza-core.iife.js` whenever `ai/` changes.
 Everything below lives in `ai/` (on-device engine, `PizzaCore`) and `backend/` (Supabase).
 
 > Status: all exercise thresholds are **placeholders (draft)** until a physiotherapist approves them.
@@ -61,6 +62,8 @@ Copy whichever you need into your static assets (e.g. `/vendor/`).
 ```
 
 `pose.start` saves the result itself, exactly once, at the end (disable with `{ autoSave: false }`).
+
+**Get into position first (`deferCounting`).** With `{ deferCounting: true }` the engine analyses frames (quality, cues, pause/resume) but does **not count** and does not finish at the target until you call `ctl.startCounting()`. Counting then starts from zero, so movement made while the person was positioning is forgotten, and the reported duration starts at that moment. This is what the framing step in `frontend/index.html` uses: show the live preview, enable "Start counting" after `onQuality` has been `'good'` for a moment, then call `ctl.startCounting()`. Calling it when counting is already on does nothing. A carer confirmation given before it is remembered.
 This also fixes the duplicate-save bug in the old `Practice.jsx` `finish()`.
 
 ESM / React: `import { createPizzaCore } from '/vendor/pizza-core.js'` and pass
@@ -194,3 +197,12 @@ Plain Edge Function calls: `POST ${SUPABASE_URL}/functions/v1/<name>` with
 ## 9. Deployment note
 
 Vercel: set **Root Directory = `frontend`** (the repository was restructured into `frontend/ backend/ ai/ docs/`).
+
+### Security headers and CSP (`frontend/vercel.json`)
+
+`vercel.json` sets a strict Content-Security-Policy plus `nosniff`, `Referrer-Policy: no-referrer` and `Permissions-Policy` (camera for this origin only). Things that follow from it:
+
+- All JavaScript is in `app.js` and `vendor/`; there is **no inline `<script>`** and no inline event-handler attributes. Do not add either, or move the script back into the HTML; the browser will block them.
+- Everything is self-hosted: no CDN scripts, no web fonts, no third-party requests. `script-src` allows `'wasm-unsafe-eval'` only for the MediaPipe WebAssembly module.
+- `connect-src` is `'self'`. **When you add Supabase sync, add your project URL there** (for example `connect-src 'self' https://<project-ref>.supabase.co`), otherwise the sync requests are blocked.
+- The CSP was tested in a browser with real MediaPipe loading (wasm + model); no violations. Not tested on a real iPhone/Android with the new headers.

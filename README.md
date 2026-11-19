@@ -1,86 +1,141 @@
-# PIZZA — Parkinson's · In-home · Zestful · Zero-fall · Activity coach
+# PIZZA — Parkinson's home activity coach
 
-แอปเว็บ (PWA-ready, mobile-first, ภาษาไทย) ผู้ช่วยออกกำลังกายที่บ้านสำหรับผู้ป่วยพาร์กินสัน
-**PIZZA เป็นเพียงชื่อย่อ ไม่เกี่ยวกับอาหาร**
+A mobile-first web app that coaches a home exercise for people with Parkinson's. It uses the phone or laptop camera to count repetitions **on the device**: no video, image or body-landmark data ever leaves the browser.
 
-> สถานะ: ต้นแบบ (prototype) ภาพสาธิตทุกท่า **ยังไม่ผ่านการตรวจสอบโดยนักกายภาพบำบัด** ไม่ใช่ท่าฝึกที่ได้รับการรับรอง
-> ไม่ใช่เครื่องมือวินิจฉัยหรือทดแทนนักกายภาพ
+**Live demo:** https://pizza-parkinson-camera.vercel.app (open it in Chrome or Safari, not inside an in-app browser such as LINE, Facebook or Instagram)
+**Track:** Healthcare · STEM2Connect AI Hackathon 2026
+**Thai version of this README:** [docs/README.th.md](docs/README.th.md)
 
-## รันเอง (ไม่ต้อง build)
-`frontend/index.html` ไฟล์เดียว ไม่มี dependency เปิดตรง ๆ ได้ หรือรัน server: `npx serve frontend` หรือ `python3 -m http.server 8080 -d frontend`
+> **Status: prototype.** PIZZA is an activity-support tool. It is **not a medical device**, does not diagnose or treat anything, does not replace a physiotherapist, and does not detect freezing, tremor or falls. All exercise demos are drafts that have **not been reviewed by a physiotherapist**, and every threshold and target (for example "5 reps") is a placeholder.
 
-## Deploy
-- **Vercel:** push GitHub → Import project → Framework "Other" ไม่ต้องตั้ง build command · **ตั้ง Root Directory = `frontend`**
-- **GitHub Pages:** Settings → Pages → Deploy from branch → โฟลเดอร์ `frontend`
+## The problem
 
-## ฟีเจอร์ที่ทำงานแล้ว (ทดสอบด้วย Chromium headless)
-Onboarding 3 ขั้น · หน้าแรก · คลังท่า (4 หมวด) · รายละเอียดท่า + Exercise Player · Session (เช็กความปลอดภัย, เวลา, นับครั้ง, หยุด/ทำต่อ/จบ, บันทึกตามสถานะจริง) · ความก้าวหน้า (กราฟ 7 วัน, ประวัติ) · ผู้ดูแล (ข้อมูลตัวอย่าง) · ศูนย์ความรู้ (ลิงก์ภายนอก) · ตั้งค่า (ขนาดตัวอักษร, เสียง, ลบข้อมูล) · โหมดมืด · รองรับ reduced motion
+People with Parkinson's are commonly encouraged to stay physically active, and much of that practice happens at home, where nobody is watching. It is hard for the person (or a carer) to know whether an exercise is actually being done, how often, and whether they are in a safe position to do it. We wanted a small, privacy-respecting coach that gives immediate feedback at home without sending video anywhere.
 
-Animation 4 ท่า: ยกแขนสูง, นั่งยกแขนสลับข้าง, ลุก–นั่ง, หมุนลำตัวขณะนั่ง — SVG rig ควบคุมได้ (เล่น/หยุด/เล่นซ้ำ/0.5x–1x/ไทม์ไลน์/มุมหน้า-ข้าง/แสดงข้อต่อ/เส้นแนวมือ/คำบรรยายไทย)
+## What works today (and what does not)
 
-## Backend + AI (`ai/` และ `backend/`)
+| Area | Status |
+| --- | --- |
+| Exercise library with animated demos, steps and precautions (4 exercises) | Works. Demos are drafts, not clinically reviewed. |
+| **Camera rep counting for the "High arm raise"** | Works. This is the only exercise we have tried with a real camera. |
+| Other 3 exercises (seated alternating arm raise, sit-to-stand, seated trunk rotation) | Demo animation only. The counter follows the animation, not your movement, and the app says so. The counting logic for them exists and is unit-tested with synthetic landmarks, but it has **not** been tried with a real camera. |
+| Session history and a 7-day chart | Works. Stored on the device (IndexedDB). "Delete all data" removes it. |
+| Backend (Supabase: consent, sync, care links, audit log) | Built and tested against a local Supabase stack. **Not connected to the live demo**: no cloud project exists, so nothing is sent anywhere. |
+| LLM / chatbot coach | Not built. |
+| Thai UI, offline use | Not built (UI is English only; there is a manifest and icons so it can be added to the home screen, but no service worker). |
+| Carers page | Sample data only, clearly labelled in the app. |
 
-ภาพรวม: ประมวลผลท่าทาง **บนอุปกรณ์** (MediaPipe) → มุมข้อต่อ → กรองสัญญาณ → นับครั้งด้วย state machine → cue จากกฎ
-**วิดีโอ ภาพ และ landmark ไม่ออกจากเครื่อง** ขึ้นเซิร์ฟเวอร์ได้เฉพาะตัวเลขสรุป (จำนวนครั้ง เวลา สถานะ) และเฉพาะเมื่อผู้ใช้ยินยอม (PDPA)
-ฝั่งเซิร์ฟเวอร์ใช้ Supabase (Auth + Postgres + RLS + Edge Functions) · ตัวตัดสินท่า/ความปลอดภัยเป็นกฎ ไม่ใช้ LLM/ML ตัดสิน
+## Try it (for judges)
 
-| ส่วน | ทำอะไร |
-|------|--------|
-| `ai/` | Pose engine, ตัวนับ 5 ท่า, safety guard (หยุดเมื่อกดหยุด/หลุดเฟรม/กล้องหยุด/ท่าเสี่ยงล้มที่ผู้ดูแลยังไม่ยืนยัน), `PizzaCore` (IndexedDB, consent, sync, ส่งออก/ลบข้อมูล) |
-| `backend/` | ตาราง `profiles`, `consents` (+ประวัติแก้ไม่ได้), `exercises`, `sessions`, `care_links`, `audit_log` · RLS ทุกตาราง · Edge Functions `sessions-batch` `consents` `delete-me` `care-links` `patient-summary` |
+1. Open https://pizza-parkinson-camera.vercel.app on a phone or a laptop with a camera, in Chrome or Safari. The first load downloads about 15 MB (the pose model), so it can take a moment.
+2. Finish the 3-step intro, open **Exercises → High arm raise → Start exercise**, tick the safety checklist and allow the camera when asked.
+3. Prop the phone up at about waist height and tap **Start in 10 s**, then step back about 2 m so your **head down to your hips** is in view. Counting starts by itself once the camera sees you clearly.
+4. Slowly raise both arms and lower them. The app counts reps (target: 5) and shows the time. If the camera cannot see you clearly it does **not** count (it fails safe instead of guessing).
+5. Open **Progress** to see the saved session. **Profile → Delete all data** clears everything.
 
-**Care link (ผู้ป่วย ↔ ผู้ดูแล/นักกายภาพ):** ผู้ป่วยเป็นฝ่ายเชิญด้วยโค้ดใช้ครั้งเดียว (หมดอายุ 7 วัน, เก็บเฉพาะ hash, เดาโค้ดผิด 5 ครั้งใน 15 นาทีจะถูกล็อก) ฝั่งผู้รับเชิญต้องเป็นบัญชีจริง
-บุคคลที่สามไม่มีสิทธิ์อ่านตาราง `sessions` ตรงๆ — อ่านได้ผ่านฟังก์ชัน `patient_summary()` ที่เดียว ซึ่งเช็กว่ามี link ที่ active **และ** ผู้ป่วยยังให้ consent `share_with_physio`
-แล้วบันทึก `audit_log` ใน transaction เดียวกัน (อ่านโดยไม่ถูกบันทึกไม่ได้) ผู้ป่วยดูประวัติว่าใครเปิดดูได้ ถอน consent หรือยกเลิก link แล้วตัดสิทธิ์ทันที
+No account is needed. If you do not have a camera, or the camera cannot start, tap **Skip the camera and use practice mode** (it appears after a few seconds); that mode counts the demo animation, not your movement, and says so.
 
-### รันและทดสอบ
+## How it works
+
+```
+camera -> MediaPipe Pose Landmarker (on device) -> joint angles -> signal filtering
+       -> per-exercise rep-counter state machine -> rule-based cues
+       -> safety guard (pause / stop on lost tracking, user stop, carer not confirmed)
+       -> summary numbers (reps, duration, status) stored locally
+```
+
+- **Pose estimation** is the only machine-learning component: Google's MediaPipe Pose Landmarker (lite), run in the browser through WebAssembly. The model and runtime are self-hosted in `frontend/vendor/` (no CDN).
+- **Counting and safety are deterministic rules**, not a language model or a learned classifier, on purpose: the app must never "guess" whether an exercise is correct or safe. Safety thresholds live in data and are placeholders until a physiotherapist signs them off.
+- **Privacy:** video frames and landmarks never leave the device. The web app makes no third-party requests (no CDN, no web fonts, no analytics) and ships a strict Content-Security-Policy. The backend is designed so that only summary numbers can be uploaded, and only after an explicit, versioned, revocable consent enforced in the database.
+
+## AI tools and how we used them
+
+**AI inside the product**
+
+- **MediaPipe Pose Landmarker (lite)** by Google (Apache-2.0), version 0.10.14 of `@mediapipe/tasks-vision`. It estimates body landmarks from camera frames, on the device. Sources and checksums of the vendored files are in [frontend/vendor/README.md](frontend/vendor/README.md).
+- No LLM or hosted AI API is used by the app. A server-side LLM weekly summary was designed but **not built**.
+
+**AI assistants used to build it (disclosure)**
+
+- **Claude Code (Anthropic)**, an AI coding assistant, was used to help write and review the TypeScript engine in `ai/` (angle math, filters, rep counters, safety guard, the `PizzaCore` storage/consent/sync layer), the Supabase backend in `backend/` (SQL migrations with row-level security, edge functions, tests including mutation checks of the safety rules), the integration of the camera engine into the web UI, and the documentation. We reviewed and tested its output: unit and database tests, runs against a local Supabase stack, and real-camera tests on a laptop and an iPhone. Design decisions (local-first, rule-based safety, consent model) and the product direction were made by the team.
+- The original single-file UI prototype (`frontend/index.html` before our changes) was written by a teammate; the git history shows it as the first commits.
+
+## Evidence and honest limits
+
+- Automated tests (last full run): `ai/` 284 unit tests, `backend/` 263 tests (PGlite for SQL and row-level-security policies, plus handler tests). Type-checking, ESLint and Prettier are clean. Safety rules were additionally checked by mutating the code and confirming that tests fail.
+- Against a real local Supabase stack: end-to-end checks of sessions, consent, account deletion, anonymous-to-email upgrade, care links and the real client library (all passing at the last run).
+- Camera: the arm raise was tried with real cameras twice, once on a laptop webcam (Chrome, one person) and once on an iPhone. In both, five real repetitions were counted as five. **That is two informal samples, not a measurement of accuracy.** We have not tested low light, several people in frame, tremor, other phones or older browsers.
+- The camera needs the head-to-hips view (about 2 m away). With the hips out of frame the app measures nothing and counts nothing, by design.
+- Browsers without WebAssembly SIMD fall back to practice mode.
+
+## What we learned
+
+- Doing the work on the device changes the design: the whole pipeline (filtering, a state machine, safety checks) has to be deterministic, testable and small enough to run in a phone browser.
+- A UI that works on a laptop can be unusable on a phone. The first phone test showed that a "Start" button that unlocks only when you stand 2 m away cannot be pressed from 2 m away; we replaced it with a countdown.
+- Writing the safety rules as data with tests (and checking the tests by mutation) found gaps that reading the code did not.
+- Health-adjacent software needs careful wording. We removed claims we could not support and label what is a placeholder.
+
+## What we would build next
+
+1. Have a physiotherapist review the exercises, thresholds and wording, and assess the regulatory position before any clinical claim.
+2. Test the camera with many more people and conditions, then extend it to the other exercises (the seated and fall-risk ones need a carer-confirmation flow tested for real).
+3. Connect the already-built backend (consent, sync, care links) to the UI, and add a Thai interface and offline use.
+4. Add an optional, privacy-preserving weekly summary generated from summary numbers only.
+
+## Repository layout
+
+| Path | What it is |
+| --- | --- |
+| `frontend/` | The web app: `index.html` + `app.js` (vanilla JS, no build step), `vendor/` (PizzaCore build, MediaPipe, model; about 15 MB), `manifest.webmanifest` + `icons/`, `vercel.json` (security headers). `camera-prototype/` is an earlier React prototype that the app no longer uses. |
+| `ai/` | On-device engine in TypeScript: pose session, rep counters, safety guard, cues, and `PizzaCore` (IndexedDB storage, consent, sync, export/delete). |
+| `backend/` | Supabase schema and row-level security, edge functions, test and end-to-end scripts. |
+| `docs/` | `INTEGRATION.md` (how the engine and backend plug into the UI, CSP notes), `SAFETY_GUIDELINES.md`, `HANDOFF.md`, `QA_PROMPT.md`, `README.th.md`. |
+
+## Run it yourself
+
+The frontend is static files with no build step. It must be served over `localhost` or HTTPS for the camera to work (opening the file directly does not work).
+
 ```bash
-# ai/  (Node 22)
-cd ai && npm ci && npm test && npm run typecheck && npm run lint && npm run build
+npx serve frontend            # or: python3 -m http.server 8080 -d frontend
+# then open http://localhost:8080
+```
 
-# backend/  — unit/RLS tests ใช้ PGlite ไม่ต้องมี Docker
+Deploy: any static host. On Vercel, import the repository and set **Root Directory = `frontend`**; `vercel.json` adds the security headers.
+
+Rebuild the engine bundle (only needed if you change `ai/`):
+
+```bash
+cd ai && npm ci && npm test && npm run typecheck && npm run lint && npm run build
+# copy ai/dist/pizza-core.iife.js to frontend/vendor/ (see frontend/vendor/README.md)
+```
+
+Backend tests (Node 22; no Docker needed for the unit and policy tests):
+
+```bash
 cd backend && npm ci && npm test && npm run typecheck && npm run lint
 ```
-ทดสอบกับ Supabase จริงในเครื่อง (ต้องเปิด Docker Desktop):
+
+End-to-end tests against a local Supabase stack (needs Docker Desktop):
+
 ```bash
 cd backend
-npm run db:start            # เปิด stack local (ครั้งแรกจะดึง image)
-npm run e2e                 # sessions / consent / ลบบัญชี        (28 checks)
-npm run e2e:upgrade         # anonymous -> email โดย user id เดิม  (10 checks)
-npm run e2e:care            # care link + patient-summary + audit  (35 checks)
+npm run db:start      # starts the local stack (first run pulls images)
+npm run e2e           # sessions, consent, account deletion
+npm run e2e:upgrade   # anonymous -> email upgrade keeping the same user id
+npm run e2e:care      # care links, patient summary, audit log
+npm run e2e:client    # the real client library against the local stack
 npm run db:stop
 ```
-ตั้งบทบาท physio ให้บัญชีที่มีอยู่แล้ว (เฉพาะ stack local — สคริปต์ปฏิเสธ URL ที่ไม่ใช่ localhost; ผู้ใช้เลื่อนบทบาทตัวเองไม่ได้):
-```bash
-cd backend && npm run admin:set-role -- doctor@example.test physio
-```
 
-### สถานะการตรวจสอบ (ตามจริง)
-- ผ่านแล้ว: `ai/` 275 tests · `backend/` 263 tests · typecheck / eslint / prettier สะอาด · e2e บน Supabase local 28/28, 10/10, 35/35 · `supabase db lint` สะอาด · มี mutation check กับกฎความปลอดภัย
-- ทดสอบกล้องและโมเดล MediaPipe จริงแล้ว **เฉพาะท่ายกแขน** (1 คน 1 เซสชัน: ยกจริง 5 ครั้ง ระบบนับได้ 5 ครั้ง) ต้องยืนให้เห็นศีรษะถึงสะโพก ถ้าสะโพกอยู่นอกเฟรม ระบบจะวัดมุมไม่ได้และไม่นับ (fail-safe) — รายละเอียดใน `docs/INTEGRATION.md`
-- **ยังไม่ได้ทดสอบ:** ท่าอื่นอีก 4 ท่าด้วยกล้องจริง (ทดสอบด้วย landmark สังเคราะห์เท่านั้น) · แสงน้อย/หลายคนในเฟรม/มือสั่น · โปรเจกต์ Supabase บน cloud (ใช้ local stack) · เครื่องจริง/screen reader (ไฟล์โมเดลไม่ได้อยู่ใน repo)
-- ค่าเกณฑ์ของทุกท่า (มุม/จำนวนครั้ง) เป็น **placeholder** และทุกท่าเป็น draft จนกว่านักกายภาพจะอนุมัติ
-- ยังไม่มี: LLM coach/RAG · ส่งอีเมลเชิญอัตโนมัติ
-- แอปเป็นเครื่องมือส่งเสริมกิจกรรม **ไม่วินิจฉัย ไม่รักษา และไม่อ้างว่าตรวจจับ freezing หรือการล้มได้** — ตัวเลขที่ผู้ดูแลเห็นเป็นเพียงจำนวนครั้ง/เวลา ไม่ใช่คะแนนทางคลินิก
+## Safety and privacy stance
 
-## เพิ่มท่าใหม่
-แก้ array `EX` ใน `index.html` (หา `const EX=`): เพิ่ม object ที่มี `id, name, cat, sup, dur, steps, warn, cap, kf`
-`kf` = keyframes `[เวลาวินาที, {มุมข้อต่อ}]` ค่าแรกต้องเท่าค่าสุดท้ายเพื่อให้วนต่อเนื่อง
-พารามิเตอร์: `shL shR` (ไหล่), `el` (ศอก), `lean` (โน้มตัว), `tw` (หมุนลำตัว), `h` (สะโพก งอ), `k` (เข่า งอ), `fold` (กอดอก) · `fwd:true` = แขนเคลื่อนไปข้างหน้า (ภาพหน้าแสดงแบบสั้นลง)
-ตำแหน่งสะโพก/เท้าคำนวณจากข้อต่อให้เท้าติดพื้นอัตโนมัติ
+- Wellness and activity support only. No diagnosis, treatment, freezing/fall detection or clinical scores; the app shows neutral numbers (reps, duration, status).
+- Exercises that risk a fall (such as sit-to-stand) need a carer nearby, and a stop control is always reachable.
+- If tracking is lost or poor, counting pauses or stops. The app never guesses.
+- Video, frames and landmarks stay on the device. Only summary numbers could ever be uploaded, and only with recorded consent.
+- Any clinical claim would need a physiotherapist's review and the relevant regulatory review first.
 
-## งานที่ยังไม่ได้ทำ
-1. ย้ายเป็น React + TypeScript + Vite + Tailwind ตามโครงสร้างใน Master Prompt (ตอนนี้เป็น vanilla JS ไฟล์เดียว) แยก engine/data/UI
-2. IndexedDB + Repository layer (ตอนนี้ใช้ localStorage ใน `save()` / `DB`)
-3. Service worker + ไอคอน PWA (192/512)
-4. Unit tests (Vitest) และชุดทดสอบ accessibility ด้วย screen reader จริง
-5. ต่อ `camera-prototype/` (MediaPipe) เข้ากับหน้า Session
-6. ตรวจสอบลิงก์ในศูนย์ความรู้ (ใส่ตามที่ผู้ใช้ให้มา ยังไม่ได้ตรวจเอง)
-7. ให้นักกายภาพตรวจ: ท่า, มุม, ความเร็ว, ข้อควรระวัง, เงื่อนไขผู้ดูแล, ถ้อยคำทั้งหมด
-8. ท่าเดิน/รำไทย/ไม้พลอง ยังไม่ได้สร้าง (ล็อกไว้ในคลัง)
+## Credits
 
-## โฟลเดอร์
-- `frontend/` UI (ของทีม UI): `index.html` แอปทั้งหมด · `camera-prototype/` โปรเจกต์ React+MediaPipe รุ่นแรก (ต้อง npm install แยก)
-- `ai/` เอนจินตรวจท่าบนอุปกรณ์ + `PizzaCore` (TypeScript)
-- `backend/` Supabase: schema, RLS, Edge Functions, สคริปต์ทดสอบ
-- `docs/` `HANDOFF.md` · `QA_PROMPT.md` · `SAFETY_GUIDELINES.md` · `INTEGRATION.md` (คู่มือเสียบ `ai/` + `backend/` เข้า UI)
+- MediaPipe Pose Landmarker by Google (Apache-2.0).
+- Built for the STEM2Connect AI Hackathon 2026.

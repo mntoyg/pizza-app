@@ -329,3 +329,142 @@ describe('pose.start: safety', () => {
     expect(h.backend.stopCalls).toBe(1);
   });
 });
+
+describe('pose.start: preview before counting (deferCounting)', () => {
+  const startPreview = (h: ReturnType<typeof harness>, core: PizzaCore) =>
+    core.pose.start({} as HTMLVideoElement, h.exercise.id, h.handlers, {
+      autoSave: false,
+      deferCounting: true,
+    });
+
+  it('analyses frames but neither counts nor finishes until startCounting() is called', async () => {
+    const h = harness({ targetReps: 1 });
+    const core = await h.make();
+    const ctl = await startPreview(h, core);
+    h.feed([...cycle(), ...cycle(), ...cycle()]);
+    h.run(300);
+
+    expect(h.handlers.onFrame).toHaveBeenCalled();
+    expect(h.handlers.onQuality).toHaveBeenCalled();
+    expect(h.events.filter((e) => e.startsWith('rep:'))).toEqual([]);
+    expect(h.handlers.onDone).not.toHaveBeenCalled();
+
+    ctl.startCounting();
+    h.feed(cycle());
+    h.run(150);
+    expect(h.events.filter((e) => e.startsWith('rep:'))).toEqual(['rep:1']);
+    expect(await ctl.finished).toMatchObject({ reps: 1, status: 'completed' });
+  });
+
+  it('counts from zero once counting starts: movement made while positioning is forgotten', async () => {
+    const h = harness({ targetReps: 2 });
+    const core = await h.make();
+    const ctl = await startPreview(h, core);
+    h.feed([...cycle(), ...cycle()]);
+    h.run(250);
+    ctl.startCounting();
+    h.feed(cycle());
+    h.run(120);
+
+    expect(h.events.filter((e) => e.startsWith('rep:'))).toEqual(['rep:1']);
+    expect(h.handlers.onDone).not.toHaveBeenCalled();
+
+    h.feed(cycle());
+    h.run(120);
+    expect(h.events.filter((e) => e.startsWith('rep:'))).toEqual(['rep:1', 'rep:2']);
+    expect(await ctl.finished).toMatchObject({ reps: 2, status: 'completed' });
+  });
+
+  it('still reports tracking quality and cues while previewing', async () => {
+    const h = harness({ targetReps: 5 });
+    const core = await h.make();
+    await startPreview(h, core);
+    for (let i = 0; i < 100; i++) h.queue.push(null); // nobody in view
+    h.run(100);
+    expect(h.handlers.onQuality).toHaveBeenCalledWith('poor');
+    expect(h.events).toContain('cue:person_lost');
+  });
+
+  it('still ends the session if the camera stream ends during the preview', async () => {
+    const h = harness({ targetReps: 5 });
+    const core = await h.make();
+    const ctl = await startPreview(h, core);
+    h.feed(Array<number>(20).fill(10));
+    h.run(10);
+    h.setCamera(false);
+    h.run(2);
+    expect(await ctl.finished).toMatchObject({ status: 'stopped' });
+    expect(h.backend.stopCalls).toBe(1);
+  });
+
+  it('measures the duration from the moment counting starts', async () => {
+    const h = harness({ targetReps: 1 });
+    const core = await h.make();
+    const ctl = await startPreview(h, core);
+    h.feed(Array<number>(150).fill(10)); // ~5 s of standing still
+    h.run(150);
+    ctl.startCounting();
+    h.feed(cycle());
+    h.run(150);
+    const summary = await ctl.finished;
+    expect(summary.status).toBe('completed');
+    expect(summary.durationS).toBeLessThan(5);
+  });
+
+  it('does not save a session that was stopped before counting began', async () => {
+    const h = harness({ targetReps: 3 });
+    const core = await h.make();
+    const ctl = await core.pose.start({} as HTMLVideoElement, h.exercise.id, h.handlers, {
+      autoSave: true,
+      deferCounting: true,
+    });
+    h.feed([...cycle(), ...cycle()]); // two full movements made while positioning
+    h.run(250);
+    ctl.requestStop();
+    expect(await ctl.finished).toMatchObject({ status: 'stopped', reps: 0, saved: false });
+    expect(await core.sessions.list()).toHaveLength(0);
+  });
+
+  it('does nothing when counting is already on, so it never resets a running exercise', async () => {
+    const h = harness({ targetReps: 2 });
+    const core = await h.make();
+    const ctl = await h.start(core);
+    h.feed([...cycle(), ...cycle()]);
+    h.run(130);
+    ctl.startCounting();
+    h.run(130);
+    expect(h.events.filter((e) => e.startsWith('rep:'))).toEqual(['rep:1', 'rep:2']);
+    expect(await ctl.finished).toMatchObject({ reps: 2, status: 'completed' });
+  });
+
+  it('remembers a carer confirmation given before counting starts', async () => {
+    const h = harness({
+      exercise: {
+        ...(DEFAULT_EXERCISES.find((e) => e.id === 'sit-stand') as Exercise),
+        targetReps: 1,
+      },
+    });
+    const core = await h.make();
+    const ctl = await startPreview(h, core);
+    ctl.confirmCarer();
+    ctl.startCounting();
+    h.feed(Array<number>(10).fill(10));
+    h.run(10);
+    expect(h.events).not.toContain('safety:carer-not-confirmed');
+  });
+
+  it('still blocks a carer-only exercise when nobody confirmed (control for the test above)', async () => {
+    const h = harness({
+      exercise: {
+        ...(DEFAULT_EXERCISES.find((e) => e.id === 'sit-stand') as Exercise),
+        targetReps: 1,
+      },
+    });
+    const core = await h.make();
+    const ctl = await startPreview(h, core);
+    ctl.startCounting();
+    h.feed(Array<number>(10).fill(10));
+    h.run(10);
+    expect(h.events).toContain('safety:carer-not-confirmed');
+  });
+});

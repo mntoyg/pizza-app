@@ -55,6 +55,12 @@ export interface PoseController {
   confirmCarer(): void;
   /** Ends the exercise now. Safe to call more than once. */
   requestStop(): void;
+  /**
+   * Starts counting when the exercise was started with `deferCounting`. Until then frames are
+   * analysed (quality, cues) but nothing is counted, so a person can get into position first.
+   * Counting starts from zero. Does nothing if counting is already on or the exercise ended.
+   */
+  startCounting(): void;
   /** Resolves once, when the exercise has ended (completed or stopped). */
   readonly finished: Promise<PoseSummary>;
 }
@@ -62,6 +68,11 @@ export interface PoseController {
 export interface PoseStartOptions {
   /** Save the session when it ends. Default true. */
   autoSave?: boolean;
+  /**
+   * Analyse frames but do not count (or finish at the target) until `startCounting()` is called.
+   * Use it for a "get into position" step. Default false: counting starts immediately.
+   */
+  deferCounting?: boolean;
 }
 
 export interface ControllerDeps {
@@ -76,6 +87,8 @@ export interface ControllerDeps {
   now: () => Date;
   save: (input: SessionInput) => Promise<StoredSession>;
   autoSave: boolean;
+  /** Analyse frames but do not count until `startCounting()`. Default false. */
+  deferCounting?: boolean;
 }
 
 /**
@@ -84,8 +97,10 @@ export interface ControllerDeps {
  */
 export async function startPoseController(deps: ControllerDeps): Promise<PoseController> {
   const { backend, exercise, handlers, scheduler, clock } = deps;
-  const session = createPoseSession({ exercise });
+  let session = createPoseSession({ exercise });
   const target = exercise.targetReps;
+  let counting = !deps.deferCounting;
+  let carerConfirmed = false;
 
   handlers.onStatus?.('loading');
   try {
@@ -97,8 +112,8 @@ export async function startPoseController(deps: ControllerDeps): Promise<PoseCon
   }
   handlers.onStatus?.('running');
 
-  const startMs = clock();
-  const startedAt = deps.now().toISOString();
+  let startMs = clock();
+  let startedAt = deps.now().toISOString();
   let frameId = 0;
   let isFinished = false;
   let reps = 0;
@@ -148,13 +163,13 @@ export async function startPoseController(deps: ControllerDeps): Promise<PoseCon
   };
 
   const dispatch = (r: FrameResult) => {
-    reps = r.reps;
+    if (counting) reps = r.reps;
     handlers.onFrame?.(r);
     if (r.quality !== lastQuality) {
       lastQuality = r.quality;
       handlers.onQuality?.(r.quality);
     }
-    if (r.repCompleted) handlers.onRep?.(r.reps, target);
+    if (counting && r.repCompleted) handlers.onRep?.(r.reps, target);
     if (r.cue !== lastCue) {
       lastCue = r.cue;
       if (r.cue) handlers.onCue?.({ key: r.cue, text: deps.messages[r.cue] });
@@ -168,7 +183,7 @@ export async function startPoseController(deps: ControllerDeps): Promise<PoseCon
     lastAction = r.action;
     lastReason = r.reason;
 
-    if (r.reps >= target) void finish('completed');
+    if (counting && r.reps >= target) void finish('completed');
     else if (r.action === 'stop' && (r.reason === 'camera-stopped' || r.reason === 'user-stop')) {
       void finish('stopped');
     }
@@ -188,7 +203,23 @@ export async function startPoseController(deps: ControllerDeps): Promise<PoseCon
   frameId = scheduler.request(tick);
 
   return {
-    confirmCarer: () => session.confirmCarer(),
+    confirmCarer() {
+      carerConfirmed = true;
+      session.confirmCarer();
+    },
+    startCounting() {
+      if (counting || isFinished) return;
+      counting = true;
+      // A fresh session forgets any movement made while positioning (counts from zero).
+      session = createPoseSession({ exercise });
+      if (carerConfirmed) session.confirmCarer();
+      reps = 0;
+      startMs = clock();
+      startedAt = deps.now().toISOString();
+      lastCue = null;
+      lastAction = 'continue';
+      lastReason = undefined;
+    },
     requestStop() {
       session.requestStop();
       void finish('stopped');

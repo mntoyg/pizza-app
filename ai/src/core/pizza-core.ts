@@ -178,6 +178,7 @@ export async function createPizzaCore(options: PizzaCoreOptions = {}): Promise<P
           now,
           save: (input) => api.sessions.save(input),
           autoSave: startOptions.autoSave ?? true,
+          deferCounting: startOptions.deferCounting ?? false,
         });
       },
     },

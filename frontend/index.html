@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#245B52">
-<title>PIZZA – Parkinson’s · In-home · Zestful · Zero-fall · Activity coach</title>
+<title>PIZZA – Parkinson’s home activity coach</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#F7F7F2;--sf:#fff;--ink:#26332F;--mu:#5f6f68;--ln:#dfe5df;--pr:#245B52;--pr2:#9BB9A8;--tint:#e6efe9;--wn:#8a5a00;--wnbg:#fbf0d4;--dg:#b3261e;--on:#fff;
@@ -95,6 +95,10 @@ let CORE=null,CORE_ON=false;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(CORE_ON?{...DB,sessions:[]}:DB))}catch(e){toast("Couldn't save data on this device")}}
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0");
+const mn=s=>s>0&&s<60?"<1":String(Math.round(s/60)); /* minutes label; keeps short sessions from showing 0 */
+const sumDur=a=>a.reduce((t,s)=>t+s.dur,0);
+const INAPP=/Line\/|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|TikTok|musical_ly|Snapchat|Twitter/i.test(navigator.userAgent||"");
+const inAppNote=()=>INAPP?`<div class="note"><b>Open in Chrome or Safari.</b> You seem to be in an app's built-in browser (for example LINE, Facebook or Instagram). The camera may not work here. Open this link in your phone's normal browser to use camera counting.</div>`:"";
 const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
 function speak(t){if(!DB.set.voice||!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(t);u.lang="en-US";speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
 function toast(m){const d=document.createElement("div");d.className="ov";d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><button class="w">OK</button></div>';d.querySelector("button").onclick=()=>d.remove();document.body.appendChild(d)}
@@ -130,7 +134,7 @@ const EX=[
  warn:["Stop immediately if you feel dizzy or lose your balance","A carer should be nearby while standing"],
  cap:[[0,"Stand tall, arms at your sides, breathe in slowly"],[.6,"Slowly raise both arms"],[3.4,"At the top, open your chest and hold for a count of 1–2"],[5,"Slowly lower your arms"],[7.8,"Back to the rest position"]],
  kf:K({},[[0,{}],[.6,{}],[3.4,up],[5,up],[7.8,{}],[9,{}]])},
-{id:"seat",name:"Seated alternating arm raise",cat:"A",sup:false,dur:12.5,tv:"front",tt:3.5,why:"Practice raising your arms while seated to reduce fall risk",
+{id:"seat",name:"Seated alternating arm raise",cat:"A",sup:false,dur:12.5,tv:"front",tt:3.5,why:"Practice raising your arms while seated, at a comfortable pace",
  steps:["Sit upright on a sturdy chair with feet flat on the floor","Slowly raise your left arm, hold briefly, then lower it","Slowly raise your right arm, hold briefly, then lower it","Alternate sides according to the set program"],
  warn:["Use a chair without wheels, against a wall","You can rest at any time"],
  cap:[[0,"Sit upright with feet flat on the floor"],[.6,"Slowly raise one arm"],[3,"Hold and breathe comfortably"],[4,"Slowly lower your arms"],[6.6,"Switch and raise the other arm"],[10,"Lower your arm and rest briefly"]],
@@ -225,32 +229,34 @@ function thumb(el,ex){const f=makeFig(ex.tv);f.el.style.cssText="width:100%;heig
 const NAV=[["home","Home","M3 11l9-8 9 8v10H3z"],["lib","Exercises","M12 4a2 2 0 100 4 2 2 0 000-4M12 9v6M8 11l4 1 4-1M12 15l-3 6M12 15l3 6"],["prog","Progress","M4 20V10M10 20V4M16 20v-8M22 20H2"],["care","Carers","M12 21s-8-5-8-11a4 4 0 018-1 4 4 0 018 1c0 6-8 11-8 11z"],["set","Profile","M12 12a4 4 0 100-8 4 4 0 000 8M4 21c0-4 4-6 8-6s8 2 8 6"]];
 let R={p:location.hash.slice(1)||"home",id:"arm",ob:0};
 function go(p,id){if(id)R.id=id;R.p=p;if(location.hash.slice(1)!=p)location.hash=p;render()}
-addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(h&&h!=R.p){R.p=h;render()}});
+/* Browser Back during a running session: keep what was actually done instead of silently dropping it */
+function leaveSession(){const s=SESS;SESS=null;stopCam();if(s&&s.stage=="run"&&s.el>0){addSession({ex:s.ex,start:s.start,dur:Math.round(s.el),reps:s.reps,status:"stopped"});return true}return false}
+addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(h&&h!=R.p){const saved=SESS&&R.p=="session"&&h!="session"&&leaveSession();R.p=h;render();if(saved)toast("You left during an exercise. What you did was saved as stopped early.")}});
 const days=()=>{const a=[];for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);a.push(d)}return a};
 const sameDay=(iso,d)=>{const x=new Date(iso);return x.getFullYear()==d.getFullYear()&&x.getMonth()==d.getMonth()&&x.getDate()==d.getDate()};
-const card=e=>`<div class="bx row"><div class="th" data-th="${e.id}"></div><div class="g"><h3>${e.name}</h3><div class="mu">${e.why}</div><div style="margin:6px 0"><span class="tag${e.sup?" w2":""}">${e.sup?"Carer recommended nearby":"Seated exercise"}</span> <span class="tag">Prototype demo</span></div><button class="ln" data-go="detail:${e.id}">View preview and details</button></div></div>`;
+const card=e=>`<div class="bx row"><div class="th" data-th="${e.id}"></div><div class="g"><h3>${e.name}</h3><div class="mu">${e.why}</div><div style="margin:6px 0"><span class="tag${e.sup?" w2":""}">${e.sup?"Carer recommended nearby":"Seated exercise"}</span> <span class="tag">Prototype demo</span> ${CAMERA_OK.has(e.id)?'<span class="tag">Camera counting</span>':'<span class="tag w2">Demo animation only</span>'}</div><button class="ln" data-go="detail:${e.id}">View preview and details</button></div></div>`;
 const PG={
 onb(){const s=[["Meet PIZZA","A home exercise assistant for people with Parkinson's. Watch the demo, practice to the rhythm, and keep activity records on your own device."],["Learn the exercises","Watch the demo figure step by step, adjust the speed, and switch between front and side views before you practice for real."],["Use it safely","PIZZA is an activity-support tool, not a diagnostic tool, and it does not replace a physiotherapist. Exercises with a fall risk need a carer nearby. All data stays on this device and is not sent anywhere."]][R.ob];
- return `<div class="logo">PIZZA</div><p class="mu">Parkinson’s · In-home · Zestful · Zero-fall · Activity coach</p><div id="pv" class="stage mini" style="margin:14px 0"></div><h1>${s[0]}</h1><p>${s[1]}</p><div class="dots">${[0,1,2].map(i=>`<i class="${i==R.ob?"on":""}"></i>`).join("")}</div><div class="row">${R.ob?`<button class="ln g" data-act="obb">Back</button>`:""}<button class="g" data-act="obn">${R.ob==2?"Get started":"Next"}</button></div>`},
-home(){const n=DB.set.name?" "+esc(DB.set.name):"",td=DB.sessions.filter(s=>sameDay(s.start,new Date())),m=Math.round(td.reduce((a,s)=>a+s.dur,0)/60),nx=EX.find(e=>!td.some(s=>s.ex==e.id&&s.status=="completed"))||EX[0],last=DB.sessions[DB.sessions.length-1];
+ return `<div class="logo">PIZZA</div><p class="mu">Parkinson’s home activity coach</p><div id="pv" class="stage mini" style="margin:14px 0"></div><h1>${s[0]}</h1><p>${s[1]}</p><div class="dots">${[0,1,2].map(i=>`<i class="${i==R.ob?"on":""}"></i>`).join("")}</div><div class="row">${R.ob?`<button class="ln g" data-act="obb">Back</button>`:""}<button class="g" data-act="obn">${R.ob==2?"Get started":"Next"}</button></div>`},
+home(){const n=DB.set.name?" "+esc(DB.set.name):"",td=DB.sessions.filter(s=>sameDay(s.start,new Date())),m=mn(sumDur(td)),nx=EX.find(e=>!td.some(s=>s.ex==e.id&&s.status=="completed"))||EX[0],last=DB.sessions[DB.sessions.length-1];
  return `<p class="mu">${new Date().toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p><h1>Hello${n}</h1>
  <div class="bx"><span class="tag w2">Sample program (not a treatment prescription)</span><h3 style="margin-top:8px">Next exercise: ${nx.name}</h3><p class="mu">${nx.why}</p><button class="w" data-go="detail:${nx.id}">View preview and start</button></div>
  <h2>Today</h2><div class="bx row"><div class="g"><div class="big">${td.length}</div><div class="mu">Sessions</div></div><div class="g"><div class="big">${m}</div><div class="mu">minutes</div></div></div>
  ${last?`<div class="bx"><b>Latest:</b> ${esc(exOf(last.ex).name)} · ${fmt(last.dur)} · ${last.status=="completed"?"Completed as planned":"Stopped early"}</div>`:`<div class="bx mu">No exercise history yet. Start by previewing an exercise.</div>`}
  <div class="row"><button class="g" data-go="lib">Exercise library</button><button class="ln g" data-go="learn">Knowledge center</button></div>
- <div class="note">General tips: clear the space, wear snug-fitting shoes, and stop immediately if you feel unwell.</div>`},
+ ${inAppNote()}<div class="note">General tips: clear the space, wear snug-fitting shoes, and stop immediately if you feel unwell.</div>`},
 lib(){return `<h1>Exercise library</h1><p class="mu">All demos are prototypes and have not yet been reviewed by a physiotherapist.</p>`+Object.keys(CATS).map(c=>`<h2>${CATS[c]}</h2>`+EX.filter(e=>e.cat==c).map(card).join("")+LOCK.filter(l=>l[0]==c).map(l=>`<div class="bx"><h3>${l[1]}</h3><div class="mu">${l[2]}</div><span class="tag w2">In development</span></div>`).join("")).join("")},
-detail(){const e=exOf(R.id);return `<button class="ln" data-go="lib" style="min-height:44px">‹ Back</button><h1>${e.name}</h1><div class="mu">${e.why}</div><div class="sp"></div><div id="pv"></div>
+detail(){const e=exOf(R.id);return `<button class="ln" data-go="lib" style="min-height:44px">‹ Back</button><h1>${e.name}</h1><div class="mu">${e.why}</div><div class="sp"></div>${inAppNote()}<div id="pv"></div>
  <h2>Steps</h2><ol>${e.steps.map(s=>`<li>${s}</li>`).join("")}</ol><h2>Precautions</h2><ul>${e.warn.map(s=>`<li>${s}</li>`).join("")}</ul>
- <div class="note">Reps and duration: as set by your physiotherapist or doctor (sample value in the app: ${TARGET} reps) · ${e.sup?"A carer should be nearby for this exercise":"This exercise is done seated"}</div><button class="w" data-go="session:${e.id}">Start exercise</button>`},
-session(){const e=exOf(R.id);if(!SESS)return `<h1>Before you start: ${e.name}</h1><div class="bx"><label class="chk"><input type="checkbox" class="ck"><span>The area is clear and non-slip, with a sturdy chair or handrail</span></label><label class="chk"><input type="checkbox" class="ck"><span>A physiotherapist or doctor has approved this exercise for me</span></label>${e.sup?`<label class="chk"><input type="checkbox" class="ck"><span>A carer is nearby throughout the exercise</span></label>`:""}<label class="chk"><input type="checkbox" class="ck"><span>I feel ready and will stop immediately if I feel unwell</span></label></div><div class="note">The demo is a prototype, not a certified exercise</div><div class="row"><button class="ln g" data-go="detail:${e.id}">Back</button><button class="g" id="st" disabled>Start exercise</button></div>`;
+ <div class="note">Sample target: ${TARGET} reps. This is a placeholder, not a prescription; ask your physiotherapist or doctor what is right for you ·${e.sup?"A carer should be nearby for this exercise":"This exercise is done seated"}</div><button class="w" data-go="session:${e.id}">Start exercise</button>`},
+session(){const e=exOf(R.id);if(!SESS)return `<h1>Before you start: ${e.name}</h1><div class="bx"><label class="chk"><input type="checkbox" class="ck"><span>The area is clear and non-slip, with a sturdy chair or handrail</span></label><label class="chk"><input type="checkbox" class="ck"><span>I understand this exercise has not been reviewed by a physiotherapist or doctor, and I will ask them if I am unsure</span></label>${e.sup?`<label class="chk"><input type="checkbox" class="ck"><span>A carer is nearby throughout the exercise</span></label>`:""}<label class="chk"><input type="checkbox" class="ck"><span>I feel ready and will stop immediately if I feel unwell</span></label></div><div class="note">The demo is a prototype, not a certified exercise</div><div class="row"><button class="ln g" data-go="detail:${e.id}">Back</button><button class="g" id="st" disabled>Start exercise</button></div>`;
  if(SESS.cam)return camPage(e);
  return `<h2 style="margin-top:0">${e.name}</h2><div id="pv"></div><div class="note">${esc(SESS.camNote||PRACTICE)}</div><div class="bx row"><div class="g"><div class="mu">Time</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">Rep</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">Pause</button><button class="dg g" id="en">End exercise</button></div>`},
 done(){const s=DB.sessions[DB.sessions.length-1];if(!s)return PG.home();return `<h1>${s.status=="completed"?"Well done":"Exercise saved"}</h1><div class="bx"><b>${esc(exOf(s.ex).name)}</b><div class="mu">Time ${fmt(s.dur)} · ${s.reps} reps · ${s.status=="completed"?"Completed as planned":"Stopped early"}</div></div><div class="row"><button class="g" data-go="prog">View progress</button><button class="ln g" data-go="home">Back to home</button></div>`},
-prog(){const ds=days(),v=ds.map(d=>Math.round(DB.sessions.filter(s=>sameDay(s.start,d)).reduce((a,s)=>a+s.dur,0)/60)),mx=Math.max(5,...v),cnt={};DB.sessions.forEach(s=>cnt[s.ex]=(cnt[s.ex]||0)+1);const fav=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+prog(){const ds=days(),v=ds.map(d=>sumDur(DB.sessions.filter(s=>sameDay(s.start,d)))/60),mx=Math.max(5,...v),cnt={};DB.sessions.forEach(s=>cnt[s.ex]=(cnt[s.ex]||0)+1);const fav=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
  if(!DB.sessions.length)return `<h1>Progress</h1><div class="bx"><h3>No data yet</h3><p class="mu">After your first exercise, your history and weekly chart will appear here.</p><button data-go="lib">Choose an exercise</button></div>`;
- return `<h1>Progress</h1><p class="mu">Recorded as actually done, not a disease assessment score</p><div class="bx row"><div class="g"><div class="big">${DB.sessions.length}</div><div class="mu">Sessions</div></div><div class="g"><div class="big">${Math.round(DB.sessions.reduce((a,s)=>a+s.dur,0)/60)}</div><div class="mu">Total minutes</div></div></div>
- <div class="bx"><h3>Exercise time, last 7 days (minutes)</h3><svg viewBox="0 0 280 130" width="100%" role="img" aria-label="Daily exercise time chart">${v.map((x,i)=>`<rect x="${i*40+8}" y="${100-x/mx*90}" width="26" height="${x/mx*90}" rx="5" fill="var(--pr)"/><text x="${i*40+21}" y="94" font-size="0"></text><text x="${i*40+21}" y="118" text-anchor="middle" font-size="11" fill="var(--mu)">${ds[i].toLocaleDateString("en-US",{weekday:"narrow"})}</text><text x="${i*40+21}" y="${96-x/mx*90}" text-anchor="middle" font-size="11" fill="var(--ink)">${x||""}</text>`).join("")}</svg></div>
+ return `<h1>Progress</h1><p class="mu">Recorded as actually done, not a disease assessment score</p><div class="bx row"><div class="g"><div class="big">${DB.sessions.length}</div><div class="mu">Sessions</div></div><div class="g"><div class="big">${mn(sumDur(DB.sessions))}</div><div class="mu">Total minutes</div></div></div>
+ <div class="bx"><h3>Exercise time, last 7 days (minutes)</h3><svg viewBox="0 0 280 130" width="100%" role="img" aria-label="Daily exercise time chart">${v.map((x,i)=>{const hh=x>0?Math.max(4,x/mx*90):0;return `<rect x="${i*40+8}" y="${100-hh}" width="26" height="${hh}" rx="5" fill="var(--pr)"/><text x="${i*40+21}" y="118" text-anchor="middle" font-size="11" fill="var(--mu)">${ds[i].toLocaleDateString("en-US",{weekday:"narrow"})}</text><text x="${i*40+21}" y="${96-hh}" text-anchor="middle" font-size="11" fill="var(--ink)">${x>0?mn(x*60):""}</text>`}).join("")}</svg></div>
  ${fav?`<div class="bx">Most frequent exercise: <b>${esc(exOf(fav[0]).name)}</b> (${fav[1]} ${fav[1]==1?"session":"sessions"})</div>`:""}<h2>History</h2>${DB.sessions.slice(-15).reverse().map(s=>`<div class="bx"><b>${esc(exOf(s.ex).name)}</b> <span class="tag${s.status=="completed"?"":" w2"}">${s.status=="completed"?"Done":"Stopped"}</span><div class="mu">${new Date(s.start).toLocaleString("en-US")} · ${fmt(s.dur)} · ${s.reps} reps</div></div>`).join("")}`},
 care(){return `<h1>Carers and physiotherapists</h1><div class="note"><b>Sample data for demonstration</b> Nothing is connected or sent to anyone else yet. Your exercise data stays on this device only.</div>
  <div class="bx"><h3>Carer (sample)</h3><div class="mu">Somsri · Daughter</div></div><div class="bx"><h3>Physiotherapist (sample)</h3><div class="mu">Sample Physiotherapist · Sample Hospital</div></div>
@@ -278,7 +284,7 @@ async function startCam(e){
  const alive=()=>CAM===me&&SESS&&SESS.cam;
  const qi=$("#qi"),cap=$("#cap2"),go2=$("#go"),video=$("#cv");
  const say=t=>{if(alive())cap.textContent=t};
- const fallback=m=>{if(!alive())return;stopCam();SESS.cam=false;SESS.stage="run";SESS.camNote=m+" "+PRACTICE;render()};
+ const fallback=m=>{if(!alive())return;stopCam();SESS.cam=false;SESS.stage="run";SESS.camNote=m+(INAPP?" Try opening this page in Chrome or Safari.":"")+" "+PRACTICE;render()};
  $("#cx").onclick=()=>{stopCam();SESS=null;go("detail",e.id)};
  const begin=()=>{if(!alive()||SESS.stage!="frame"||!me.ctl)return;SESS.stage="run";me.ctl.startCounting();me.base=0;SESS.reps=0;$("#frm").hidden=true;$("#run").hidden=false;qi.style.display="none";say("Raise both arms slowly, as high as is comfortable.");tickTimer();
   $("#ps").onclick=()=>{SESS.paused=!SESS.paused;$("#ps").textContent=SESS.paused?"Resume":"Pause"};
@@ -319,14 +325,14 @@ function after(){
   ctl=player(pv,e,{ctl:false,speak:true,onLoop(){if(SESS&&!SESS.paused){SESS.reps++;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("Rep "+SESS.reps);if(SESS.reps>=TARGET)fin("completed")}}});
   tickTimer();
   $("#ps").onclick=()=>{SESS.paused=!SESS.paused;SESS.paused?ctl.pause():ctl.resume();$("#ps").textContent=SESS.paused?"Resume":"Pause"};
-  $("#en").onclick=async()=>{ctl.pause();SESS.paused=true;if(await ask("End the exercise now? It will be saved as actually done.","End exercise"))fin(SESS.reps>=TARGET?"completed":"stopped");else{SESS.paused=false;ctl.resume();$("#ps").textContent="Pause"}};
+  $("#en").onclick=async()=>{const was=SESS.paused;ctl.pause();SESS.paused=true;if(await ask("End the exercise now? It will be saved as actually done.","End exercise"))fin(SESS.reps>=TARGET?"completed":"stopped");else if(SESS){SESS.paused=was;if(!was)ctl.resume()}};
  }
  if(p=="set"){$("#nm").oninput=ev=>{DB.set.name=ev.target.value;save()};$("#vc").onchange=ev=>{DB.set.voice=ev.target.checked;save()};
   $("#fs").onclick=ev=>{const v=ev.target.dataset.v;if(!v)return;DB.set.fs=+v;save();document.documentElement.style.fontSize=v*100+"%";[...$("#fs").children].forEach(b=>b.classList.toggle("on",b==ev.target))};
   $("#clr").onclick=async()=>{if(await ask("Delete all history and settings on this device? This cannot be undone.","Delete all")){if(CORE_ON){try{await CORE.data.deleteAll()}catch(x){toast("Couldn't clear every stored session")}}DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};try{localStorage.removeItem(KEY)}catch(x){}document.documentElement.style.fontSize="100%";R.ob=0;go("onb")}}}
 }
 function render(){
- stopAll();speechSynthesis&&speechSynthesis.cancel&&speechSynthesis.cancel();
+ stopAll();if(window.speechSynthesis&&speechSynthesis.cancel)speechSynthesis.cancel();
  if(!DB.set.onb&&R.p!="onb")R.p="onb";
  if(R.p!="session"&&R.p!="done")SESS=null;
  if(!SESS&&CAM)stopCam();

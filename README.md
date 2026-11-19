@@ -4,7 +4,6 @@ A mobile-first web app that coaches a home exercise for people with Parkinson's.
 
 **Live demo:** https://pizza-parkinson-camera.vercel.app (open it in Chrome or Safari, not inside an in-app browser such as LINE, Facebook or Instagram)
 **Track:** Healthcare · STEM2Connect AI Hackathon 2026
-**Thai version of this README:** [docs/README.th.md](docs/README.th.md)
 
 > **Status: prototype.** PIZZA is an activity-support tool. It is **not a medical device**, does not diagnose or treat anything, does not replace a physiotherapist, and does not detect freezing, tremor or falls. All exercise demos are drafts that have **not been reviewed by a physiotherapist**, and every threshold and target (for example "5 reps") is a placeholder.
 
@@ -64,7 +63,7 @@ camera -> MediaPipe Pose Landmarker (on device) -> joint angles -> signal filter
 
 - Automated tests (last full run): `ai/` 284 unit tests, `backend/` 263 tests (PGlite for SQL and row-level-security policies, plus handler tests). Type-checking, ESLint and Prettier are clean. Safety rules were additionally checked by mutating the code and confirming that tests fail.
 - Against a real local Supabase stack: end-to-end checks of sessions, consent, account deletion, anonymous-to-email upgrade, care links and the real client library (all passing at the last run).
-- Camera: the arm raise was tried with real cameras twice, once on a laptop webcam (Chrome, one person) and once on an iPhone. In both, five real repetitions were counted as five. **That is two informal samples, not a measurement of accuracy.** We have not tested low light, several people in frame, tremor, other phones or older browsers.
+- Camera: the arm raise was tried with real cameras three times: twice on a laptop webcam (Chrome, one person, the second time on the deployed site) and once on an iPhone. Each time, five real repetitions were counted as five. **That is three informal samples, not a measurement of accuracy.** We have not tested low light, several people in frame, tremor, other phones or older browsers.
 - The camera needs the head-to-hips view (about 2 m away). With the hips out of frame the app measures nothing and counts nothing, by design.
 - Browsers without WebAssembly SIMD fall back to practice mode.
 
@@ -89,7 +88,7 @@ camera -> MediaPipe Pose Landmarker (on device) -> joint angles -> signal filter
 | `frontend/` | The web app: `index.html` + `app.js` (vanilla JS, no build step), `vendor/` (PizzaCore build, MediaPipe, model; about 15 MB), `manifest.webmanifest` + `icons/`, `vercel.json` (security headers). `camera-prototype/` is an earlier React prototype that the app no longer uses. |
 | `ai/` | On-device engine in TypeScript: pose session, rep counters, safety guard, cues, and `PizzaCore` (IndexedDB storage, consent, sync, export/delete). |
 | `backend/` | Supabase schema and row-level security, edge functions, test and end-to-end scripts. |
-| `docs/` | `INTEGRATION.md` (how the engine and backend plug into the UI, CSP notes), `SAFETY_GUIDELINES.md`, `HANDOFF.md`, `QA_PROMPT.md`, `README.th.md`. |
+| `docs/` | `INTEGRATION.md` (how the engine and backend plug into the UI, CSP notes), `SAFETY_GUIDELINES.md`, `HANDOFF.md`. |
 
 ## Run it yourself
 

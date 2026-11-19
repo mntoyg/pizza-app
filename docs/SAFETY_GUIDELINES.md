@@ -1,7 +1,7 @@
 # Safety guidelines
-- เครื่องมือสนับสนุนกิจกรรม ไม่ใช่เครื่องมือวินิจฉัย/รักษา ไม่ทดแทนนักกายภาพ
-- ท่ายืน/ลุก–นั่ง/เดิน: ต้องมีผู้ดูแลอยู่ใกล้ (เช็กลิสต์ก่อนเริ่มทุกครั้ง)
-- ตัวละครสาธิตเป็นต้นแบบ ไม่ใช่ใบสั่งการรักษา จำนวนครั้ง (5) เป็นค่าตัวอย่าง
-- ไม่อ้างความสามารถตรวจจับ freezing/ล้ม/dyskinesia และไม่แสดงคะแนนที่ดูเป็นการประเมินทางคลินิก
-- ข้อมูลเก็บในเครื่อง ไม่ส่งภาพ/ข้อมูลไปเซิร์ฟเวอร์ ต้องขอความยินยอมก่อนมีฟีเจอร์แชร์ (PDPA)
-- หากอ้างผลทางคลินิก ต้องตรวจสอบเรื่องเครื่องมือแพทย์กับ อย.
+- PIZZA is an activity-support tool, not a tool to diagnose or treat disease, and it does not replace a physiotherapist.
+- Standing, sit-to-stand and walking exercises: a carer must be nearby (a checklist is shown before every start).
+- The demo figures are prototypes, not treatment prescriptions. The rep count (5) is a sample value.
+- Make no claim of being able to detect freezing, falls or dyskinesia, and do not show any score that looks like a clinical assessment.
+- Data is stored on the device; no images or data are sent to a server. Consent must be obtained before any sharing feature exists (PDPA, Thailand's personal data protection law).
+- Any clinical claim requires a medical-device review with the Thai Food and Drug Administration (Thai FDA) first.

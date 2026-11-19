@@ -106,7 +106,8 @@ try {
   const physio = await realUser('physio');
   const carer = await realUser('carer');
   const anonMember = await anonymousUser();
-  users.push(patient, other, physio, carer, anonMember);
+  const guesser = await realUser('guesser');
+  users.push(patient, other, physio, carer, anonMember, guesser);
 
   await setConsent(patient, 'sync_sessions', true);
   const upload = await http(`${FN}/sessions-batch`, {
@@ -296,6 +297,29 @@ try {
   check('a stranger cannot revoke someone else’s link (404)', strangerRevoke.status === 404);
   const leave = await careLinks(carer, { action: 'revoke', linkId: rightEmail.json.linkId });
   check('a member can leave a link themselves', leave.status === 200, leave.json);
+
+  // ---- guessing invitation codes is rate limited (5 wrong codes -> locked out)
+  const guesses = [];
+  for (let i = 0; i < 5; i++) {
+    guesses.push(
+      (await careLinks(guesser, { action: 'accept', code: '0000-0000-0000-0000' })).status,
+    );
+  }
+  const realInvite = await careLinks(patient, { action: 'invite', role: 'carer' });
+  const locked = await careLinks(guesser, { action: 'accept', code: realInvite.json.code });
+  check(
+    'five wrong codes are refused (404), then the user is locked out even with a valid code (429)',
+    guesses.every((s) => s === 404) &&
+      locked.status === 429 &&
+      locked.json?.error === 'too_many_attempts',
+    [guesses.join(), locked.status],
+  );
+  const otherUserOk = await careLinks(carer, { action: 'accept', code: realInvite.json.code });
+  check(
+    'the lockout is per user: another account can still use the code',
+    otherUserOk.status === 200,
+    otherUserOk.status,
+  );
 
   // ---- auth edge cases
   const noToken = await http(`${FN}/patient-summary`, {

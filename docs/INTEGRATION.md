@@ -163,7 +163,7 @@ Plain Edge Function calls: `POST ${SUPABASE_URL}/functions/v1/<name>` with
 | Either side    | `care-links`      | `{ action: 'revoke', linkId }`                                       | `{ revoked: true }` — the patient can end any link or withdraw an invite; a member can leave their own link.                                                 |
 | Carer / physio | `patient-summary` | `{ patientId, from?, to? }` (ISO UTC; default last 30 days, max 366) | `{ patient, range, truncated, totals, byExercise, sessions }` (camelCase, up to 500 sessions)                                                                |
 
-- Errors: `invalid_invite` 404 · `account_required` 403 · `already_linked` 409 · `too_many_invites` 429 ·
+- Errors: `invalid_invite` 404 · `account_required` 403 · `already_linked` 409 · `too_many_invites` 429 · `too_many_attempts` 429 (5 wrong codes in 15 minutes: that user must wait) ·
   `invalid_email` / `invalid_range` 400 · `forbidden` 403. Every refusal to read looks identical on
   purpose (no link, no consent, revoked, unknown patient), so nothing leaks.
 - Reading needs an **active link and** the patient's `share_with_physio` consent (one consent covers

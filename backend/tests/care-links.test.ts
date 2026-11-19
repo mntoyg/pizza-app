@@ -55,8 +55,22 @@ async function rpc<T = unknown>(uid: string, fn: string, args: unknown[] = []): 
 
 const invite = (uid: string, role = 'physio', email: string | null = null) =>
   rpc<Invite>(uid, 'create_care_invite', [role, email]);
-const accept = (uid: string, code: string) =>
-  rpc<{ link_id: string; member_role: string }>(uid, 'accept_care_invite', [code]);
+/**
+ * A refused guess comes back as `{ error }` (not an exception) so that the failed attempt is
+ * committed and can be counted; this helper turns it back into a throw for readability.
+ */
+async function accept(
+  uid: string,
+  code: string,
+): Promise<{ link_id: string; member_role: string }> {
+  const res = await rpc<{ link_id?: string; member_role?: string; error?: string }>(
+    uid,
+    'accept_care_invite',
+    [code],
+  );
+  if (res.error !== undefined) throw new Error(res.error);
+  return res as { link_id: string; member_role: string };
+}
 const revoke = (uid: string, linkId: string) => rpc(uid, 'revoke_care_link', [linkId]);
 const summary = (
   uid: string,
@@ -329,6 +343,130 @@ describe('accept_care_invite', () => {
       ['care_link.created', A],
       ['care_link.accepted', PHYSIO],
     ]);
+  });
+});
+
+describe('accept_care_invite guess limit', () => {
+  const WRONG = '0000-0000-0000-0000';
+  const attempts = async (uid: string) =>
+    Number(
+      (
+        await db.query<{ n: number }>(
+          `select count(*)::int as n from public.care_invite_attempts where user_id = $1`,
+          [uid],
+        )
+      ).rows[0]!.n,
+    );
+  const guessWrong = async (uid: string, times = 1) => {
+    for (let i = 0; i < times; i++) {
+      await expect(accept(uid, WRONG)).rejects.toThrow(/invalid_invite/);
+    }
+  };
+
+  it('locks a user out after 5 wrong codes, even when the next code is right', async () => {
+    const inv = await invite(A);
+    await guessWrong(PHYSIO, 5);
+    await expect(accept(PHYSIO, inv.code)).rejects.toThrow(/too_many_attempts/);
+    // the right code was not consumed by the refused attempt
+    const r = await db.query<{ status: string }>(`select status from public.care_links`);
+    expect(r.rows).toEqual([{ status: 'pending' }]);
+  });
+
+  it('records a wrong guess even though the caller is told no', async () => {
+    await guessWrong(PHYSIO, 1);
+    expect(await attempts(PHYSIO)).toBe(1);
+  });
+
+  it('allows 4 wrong codes and still accepts the right one', async () => {
+    const inv = await invite(A);
+    await guessWrong(PHYSIO, 4);
+    expect((await accept(PHYSIO, inv.code)).link_id).toBe(inv.id);
+  });
+
+  it('lets the user try again once the window has passed', async () => {
+    const inv = await invite(A);
+    await guessWrong(PHYSIO, 5);
+    await db.query(`update public.care_invite_attempts set at = now() - interval '16 minutes'`);
+    expect((await accept(PHYSIO, inv.code)).link_id).toBe(inv.id);
+  });
+
+  it('is per user: one locked-out user does not block another', async () => {
+    const inv = await invite(A);
+    await guessWrong(PHYSIO, 5);
+    expect((await accept(CARER, inv.code)).link_id).toBe(inv.id);
+  });
+
+  it('counts every kind of bad code', async () => {
+    const expired = await invite(A);
+    await db.query(
+      `update public.care_links set expires_at = now() - interval '1 minute' where id = $1`,
+      [expired.id],
+    );
+    const withdrawn = await invite(A);
+    await revoke(A, withdrawn.id);
+    const forSomeoneElse = await invite(A, 'physio', 'other@example.test');
+    await guessWrong(PHYSIO, 1); // unknown code
+    for (const inv of [expired, withdrawn, forSomeoneElse]) {
+      await expect(accept(PHYSIO, inv.code)).rejects.toThrow(/invalid_invite/);
+    }
+    expect(await attempts(PHYSIO)).toBe(4);
+    const own = await invite(B);
+    await expect(accept(B, own.code)).rejects.toThrow(/invalid_invite/); // your own invitation
+    expect(await attempts(B)).toBe(1);
+  });
+
+  it('does not count refusals that are not guesses', async () => {
+    const ANON = '00000000-0000-4000-8000-0000000000a5';
+    await createUserWith(db, ANON, { anonymous: true, email: null, confirmed: false });
+    await expect(accept(ANON, WRONG)).rejects.toThrow(/account_required/);
+    expect(await attempts(ANON)).toBe(0);
+
+    await linkUp(A, PHYSIO);
+    const second = await invite(A, 'carer');
+    await expect(accept(PHYSIO, second.code)).rejects.toThrow(/already_linked/);
+    expect(await attempts(PHYSIO)).toBe(0);
+  });
+
+  it('starts counting from zero again after a successful accept', async () => {
+    const inv = await invite(A);
+    await guessWrong(PHYSIO, 4);
+    await accept(PHYSIO, inv.code);
+    expect(await attempts(PHYSIO)).toBe(0);
+  });
+
+  it('still counts attempts made 10 minutes ago (the clean-up never shortens the lockout)', async () => {
+    for (let i = 0; i < 5; i++) {
+      await db.query(
+        `insert into public.care_invite_attempts (user_id, at) values ($1, now() - interval '10 minutes')`,
+        [PHYSIO],
+      );
+    }
+    await expect(accept(PHYSIO, WRONG)).rejects.toThrow(/too_many_attempts/);
+  });
+
+  it('forgets attempts older than a day', async () => {
+    await db.query(
+      `insert into public.care_invite_attempts (user_id, at) values ($1, now() - interval '2 days')`,
+      [CARER],
+    );
+    await guessWrong(PHYSIO, 1);
+    expect(await attempts(CARER)).toBe(0);
+  });
+
+  it('keeps the attempts table out of reach of users', async () => {
+    await guessWrong(PHYSIO, 1);
+    await expect(
+      asUser(db, PHYSIO, () => db.query(`select * from public.care_invite_attempts`)),
+    ).rejects.toThrow(denied);
+    await expect(
+      asUser(db, PHYSIO, () => db.query(`delete from public.care_invite_attempts`)),
+    ).rejects.toThrow(denied);
+    await expect(
+      asUser(db, PHYSIO, () =>
+        db.query(`insert into public.care_invite_attempts (user_id) values ($1)`, [PHYSIO]),
+      ),
+    ).rejects.toThrow(denied);
+    expect(await attempts(PHYSIO)).toBe(1);
   });
 });
 

@@ -197,3 +197,12 @@ Plain Edge Function calls: `POST ${SUPABASE_URL}/functions/v1/<name>` with
 ## 9. Deployment note
 
 Vercel: set **Root Directory = `frontend`** (the repository was restructured into `frontend/ backend/ ai/ docs/`).
+
+### Security headers and CSP (`frontend/vercel.json`)
+
+`vercel.json` sets a strict Content-Security-Policy plus `nosniff`, `Referrer-Policy: no-referrer` and `Permissions-Policy` (camera for this origin only). Things that follow from it:
+
+- All JavaScript is in `app.js` and `vendor/`; there is **no inline `<script>`** and no inline event-handler attributes. Do not add either, or move the script back into the HTML; the browser will block them.
+- Everything is self-hosted: no CDN scripts, no web fonts, no third-party requests. `script-src` allows `'wasm-unsafe-eval'` only for the MediaPipe WebAssembly module.
+- `connect-src` is `'self'`. **When you add Supabase sync, add your project URL there** (for example `connect-src 'self' https://<project-ref>.supabase.co`), otherwise the sync requests are blocked.
+- The CSP was tested in a browser with real MediaPipe loading (wasm + model); no violations. Not tested on a real iPhone/Android with the new headers.

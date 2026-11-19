@@ -1,0 +1,283 @@
+"use strict";
+/* ===== state / storage (localStorage; swap for IndexedDB/backend later in the same functions) ===== */
+const KEY="pizza.v1";
+let DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};
+try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.sessions))DB={...DB,...r,set:{...DB.set,...r.set}}}catch(e){}
+let CORE=null,CORE_ON=false;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(CORE_ON?{...DB,sessions:[]}:DB))}catch(e){toast("Couldn't save data on this device")}}
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0");
+const mn=s=>s>0&&s<60?"<1":String(Math.round(s/60)); /* minutes label; keeps short sessions from showing 0 */
+const sumDur=a=>a.reduce((t,s)=>t+s.dur,0);
+const INAPP=/Line\/|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|TikTok|musical_ly|Snapchat|Twitter/i.test(navigator.userAgent||"");
+const inAppNote=()=>INAPP?`<div class="note"><b>Open in Chrome or Safari.</b> You seem to be in an app's built-in browser (for example LINE, Facebook or Instagram). The camera may not work here. Open this link in your phone's normal browser to use camera counting.</div>`:"";
+const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+function speak(t){if(!DB.set.voice||!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(t);u.lang="en-US";speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+function toast(m){const d=document.createElement("div");d.className="ov";d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><button class="w">OK</button></div>';d.querySelector("button").onclick=()=>d.remove();document.body.appendChild(d)}
+function ask(m,ok){return new Promise(r=>{const d=document.createElement("div");d.className="ov";d.setAttribute("role","dialog");d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><div class="row"><button class="ln g" data-v="0">Cancel</button><button class="g" data-v="1">'+esc(ok)+'</button></div></div>';d.onclick=e=>{const v=e.target.dataset.v;if(v!=null){d.remove();r(v=="1")}};document.body.appendChild(d)})}
+
+/* ===== PizzaCore: pose engine + session storage (IndexedDB). Settings stay in localStorage ===== */
+const ENGINE_ID={arm:"arm-raise",seat:"seated-alt-arm",sts:"sit-stand",trk:"torso-twist"};
+const UI_ID=Object.fromEntries(Object.entries(ENGINE_ID).map(([u,e])=>[e,u]));
+const CAMERA_OK=new Set(["arm"]); /* only exercises that have been tried with a real camera */
+const PRACTICE="Practice mode: the rep count follows the demo animation, not your movement.";
+const toCore=s=>({exerciseId:ENGINE_ID[s.ex]||s.ex,startedAt:s.start,durationS:s.dur,reps:s.reps,status:s.status});
+const fromCore=c=>({ex:UI_ID[c.exerciseId]||c.exerciseId,start:c.startedAt,dur:c.durationS,reps:c.reps,status:c.status});
+async function initCore(){
+ try{
+  if(!window.PizzaCore)return;
+  const c=await PizzaCore.createPizzaCore({consentTextVersion:"v1"});
+  if(c.storageMode!=="indexeddb")return; /* memory storage would lose the history on reload */
+  for(const s of DB.sessions){try{await c.sessions.save({clientId:"legacy-"+s.start+"-"+s.ex,...toCore(s)})}catch(e){}}
+  const all=await c.sessions.list();
+  CORE=c;CORE_ON=true;DB.sessions=all.map(fromCore).sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:0);save();
+  if(!SESS)render();
+ }catch(e){console.warn("PizzaCore storage unavailable, keeping localStorage",e)}
+}
+function addSession(s){DB.sessions.push(s);if(CORE_ON)CORE.sessions.save(toCore(s)).catch(()=>toast("Couldn't save this session on this device"));else save()}
+
+/* ===== exercise data (demo, NOT clinically approved) ===== */
+const D={shL:0,shR:0,el:8,lean:0,tw:0,h:0,k:0,fold:0};
+const K=(b,a)=>a.map(([t,o])=>({t,...D,...b,...o}));
+const up={shL:170,shR:170,el:4,lean:-3},sit={h:90,k:90},ar=v=>({shL:v,shR:v});
+const EX=[
+{id:"arm",name:"High arm raise",cat:"A",sup:true,dur:9,tv:"front",tt:4,why:"Trains the arms and trunk to move through a wider range",
+ steps:["Stand upright near a wall or a sturdy chair, arms at your sides","Slowly raise both arms as high as is comfortable","Hold at the top for a count of 1–2","Slowly lower your arms back to the rest position"],
+ warn:["Stop immediately if you feel dizzy or lose your balance","A carer should be nearby while standing"],
+ cap:[[0,"Stand tall, arms at your sides, breathe in slowly"],[.6,"Slowly raise both arms"],[3.4,"At the top, open your chest and hold for a count of 1–2"],[5,"Slowly lower your arms"],[7.8,"Back to the rest position"]],
+ kf:K({},[[0,{}],[.6,{}],[3.4,up],[5,up],[7.8,{}],[9,{}]])},
+{id:"seat",name:"Seated alternating arm raise",cat:"A",sup:false,dur:12.5,tv:"front",tt:3.5,why:"Practice raising your arms while seated, at a comfortable pace",
+ steps:["Sit upright on a sturdy chair with feet flat on the floor","Slowly raise your left arm, hold briefly, then lower it","Slowly raise your right arm, hold briefly, then lower it","Alternate sides according to the set program"],
+ warn:["Use a chair without wheels, against a wall","You can rest at any time"],
+ cap:[[0,"Sit upright with feet flat on the floor"],[.6,"Slowly raise one arm"],[3,"Hold and breathe comfortably"],[4,"Slowly lower your arms"],[6.6,"Switch and raise the other arm"],[10,"Lower your arm and rest briefly"]],
+ kf:K(sit,[[0,{}],[.6,{}],[3,{shL:150,el:6}],[4,{shL:150,el:6}],[6,{}],[6.6,{}],[9,{shR:150,el:6}],[10,{shR:150,el:6}],[12,{}],[12.5,{}]])},
+{id:"sts",name:"Sit-to-stand from a chair",cat:"B",sup:true,fwd:true,dur:10.4,tv:"side",tt:2.7,why:"Practice standing up and sitting down in daily life",
+ steps:["Sit at the edge of a sturdy chair, feet shoulder-width apart","Lean forward, then push through your feet to stand up","Stand upright and still for a moment","Lean forward slightly, then sit down slowly"],
+ warn:["A carer must be nearby every time","Do not use a chair with wheels or a slippery seat"],
+ cap:[[0,"Sit at the edge of the chair, feet flat"],[.8,"Lean forward so your nose is over your toes"],[2.6,"Push through your feet and straighten your hips and knees"],[5,"Stand upright and still"],[6.4,"Lean forward and move your hips back toward the chair"],[8.6,"Sit down slowly and with control"]],
+ kf:K({},[[0,{...sit,...ar(15)}],[.8,{...sit,...ar(15)}],[2.6,{h:88,k:88,lean:32,...ar(75)}],[5,{...ar(20)}],[6.4,{...ar(20)}],[8.6,{h:88,k:88,lean:30,...ar(75)}],[10.4,{...sit,...ar(15)}]])},
+{id:"trk",name:"Seated trunk rotation",cat:"A",sup:false,dur:11.5,tv:"front",tt:3.6,why:"Practice slow trunk rotation within a comfortable range",
+ steps:["Sit upright, fold your arms or rest your hands on your shoulders","Slowly rotate your trunk to one side, within a comfortable range","Return to the center, then rotate to the other side","Keep your feet in place and don't tense your neck and shoulders"],
+ warn:["Rotate only as far as is comfortable; don't force it","Stop immediately if you feel pain or dizziness"],
+ cap:[[0,"Sit upright, arms folded"],[.8,"Slowly rotate your trunk to one side"],[3,"Hold briefly and breathe comfortably"],[4.2,"Rotate through the center to the other side"],[7,"Hold briefly"],[8.2,"Return to the center"]],
+ kf:K({...sit,fold:1,shL:32,shR:32,el:118},[[0,{}],[.8,{}],[3,{tw:40}],[4.2,{tw:40}],[7,{tw:-40}],[8.2,{tw:-40}],[10.5,{}],[11.5,{}]])}
+];
+const LOCK=[["C","Rhythm and walking practice","Safety conditions must be set by a physiotherapist"],["D","Adapted Thai dance moves","Awaiting expert design and review"],["D","Movement with a staff","Awaiting expert design and review"]];
+const CATS={A:"A · Wide-range movements",B:"B · Functional movements",C:"C · Walking and locomotion",D:"D · Thai-style movements"};
+const exOf=id=>EX.find(e=>e.id==id)||EX[0];
+
+/* ===== animation engine: timeline + rig ===== */
+function poseAt(ex,t){const a=ex.kf;let i=0;while(i<a.length-2&&t>a[i+1].t)i++;const x=a[i],y=a[i+1];let u=Math.min(1,Math.max(0,(t-x.t)/(y.t-x.t)));u=u*u*(3-2*u);const p={};for(const k in D)p[k]=x[k]+(y[k]-x[k])*u;p.fwd=ex.fwd?1:0;return p}
+const SK="#E7BD9A",HA="#B9BEBC",SH="#4F8F82",SH2="#3F7A6E",PN="#3A4A52",PN2="#2D3A41",ST="#26332F";
+const J=(x,y)=>`<circle class="jt" cx="${x}" cy="${y}" r="5.5"/>`;
+const arm=(id,x,far)=>`<g id="${id}" transform="translate(${x} -98)"><rect x="-8" y="-4" width="16" height="62" rx="8" fill="${SK}"/><rect x="-9" y="-6" width="18" height="32" rx="9" fill="${far?SH2:SH}"/>${J(0,0)}<g id="${id}f" transform="translate(0 58)"><rect x="-7" y="-4" width="14" height="54" rx="7" fill="${SK}"/><ellipse id="${id}h" cx="0" cy="56" rx="8" ry="10" fill="${SK}"/>${J(0,0)}${J(0,56)}</g></g>`;
+const FRONT=`<ellipse cx="0" cy="2" rx="95" ry="8" fill="#26332f" opacity=".08"/><g id="chair" stroke="#9BB9A8" stroke-width="7" stroke-linecap="round" fill="none"><path d="M-48 -92H48M-44 -92V0M44 -92V0M-46 -92V-190M46 -92V-190M-46 -186H46" /></g>
+<g id="bd"><g id="L0"><rect id="t0" x="-24" y="0" width="23" height="82" rx="11" fill="${PN}"/><rect id="s0" x="-22" y="82" width="18" height="78" rx="9" fill="${PN}"/><ellipse id="f0" cx="-14" cy="160" rx="13" ry="7" fill="${ST}"/></g><g id="L1"><rect id="t1" x="1" y="0" width="23" height="82" rx="11" fill="${PN}"/><rect id="s1" x="4" y="82" width="18" height="78" rx="9" fill="${PN}"/><ellipse id="f1" cx="14" cy="160" rx="13" ry="7" fill="${ST}"/></g>
+<rect x="-28" y="-16" width="56" height="30" rx="14" fill="${PN}"/>${J(-13,0)}${J(13,0)}
+<g id="tr"><path d="M-27 -100Q-31 -94-28 -78L-23 -6Q0 4 23 -6L28 -78Q31 -94 27 -100Q0 -113-27 -100Z" fill="${SH}"/><rect x="-6" y="-118" width="12" height="20" rx="5" fill="${SK}"/>
+<g id="hd"><ellipse cx="0" cy="-136" rx="17" ry="20" fill="${SK}"/><ellipse cx="-17" cy="-136" rx="3" ry="5" fill="${SK}"/><ellipse cx="17" cy="-136" rx="3" ry="5" fill="${SK}"/><path d="M-18 -138Q-19 -160 0 -160Q19 -160 18 -138Q11 -149 0 -150Q-11 -149-18 -138Z" fill="${HA}"/><circle cx="-6" cy="-136" r="1.9" fill="${ST}"/><circle cx="6" cy="-136" r="1.9" fill="${ST}"/><path d="M-6 -128Q0 -123 6 -128" stroke="#a8553f" stroke-width="2" fill="none" stroke-linecap="round"/></g>${J(0,-112)}
+${arm("A0",-27)}${arm("A1",27)}</g></g><g id="trail"></g>`;
+const SIDE=`<ellipse cx="-40" cy="2" rx="130" ry="8" fill="#26332f" opacity=".08"/><g stroke="#9BB9A8" stroke-width="7" stroke-linecap="round" fill="none"><path d="M-135 -76H-45M-130 -76V0M-50 -76V0M-135 -76V-195M-135 -190V-150"/></g>
+<g id="bd"><g transform="translate(-7 0)">${"<g class=\"tg\"><rect x=\"-11\" y=\"-4\" width=\"22\" height=\"86\" rx=\"11\" fill=\""+PN2+"\"/><g class=\"sg\"><rect x=\"-9\" y=\"-4\" width=\"18\" height=\"82\" rx=\"9\" fill=\""+PN2+"\"/><g class=\"fg\"><path d=\"M-8 -3L-8 8L24 8Q27 -1 12 -3Z\" fill=\""+ST+"\"/></g></g></g>"}</g>
+<g class="tg"><rect x="-12" y="-4" width="24" height="86" rx="12" fill="${PN}"/>${J(0,0)}<g class="sg"><rect x="-10" y="-4" width="20" height="82" rx="10" fill="${PN}"/>${J(0,0)}<g class="fg"><path d="M-9 -3L-9 9L26 9Q29 -1 13 -3Z" fill="${ST}"/>${J(0,0)}</g></g></g>
+<rect x="-17" y="-16" width="34" height="32" rx="14" fill="${PN}"/>
+<g id="tr"><g id="far" transform="translate(0 -98)"><rect x="-8" y="-4" width="16" height="62" rx="8" fill="${SK}"/><rect x="-9" y="-6" width="18" height="32" rx="9" fill="${SH2}"/><g id="farf" transform="translate(0 58)"><rect x="-7" y="-4" width="14" height="54" rx="7" fill="${SK}"/><ellipse cx="0" cy="56" rx="8" ry="10" fill="${SK}"/></g></g>
+<path d="M-14 -100Q-19 -60-15 -6Q0 4 16 -6Q20 -50 16 -96Q2 -111-14 -100Z" fill="${SH}"/><rect x="-5" y="-118" width="13" height="20" rx="5" fill="${SK}"/>
+<g id="hd"><ellipse cx="3" cy="-136" rx="16" ry="20" fill="${SK}"/><path d="M19 -138Q25 -135 19 -131Z" fill="${SK}"/><path d="M-14 -134Q-16 -160 5 -160Q19 -158 18 -143Q8 -150-1 -146Q-8 -140-8 -130Z" fill="${HA}"/><circle cx="10" cy="-138" r="1.9" fill="${ST}"/><path d="M8 -128Q13 -126 17 -128" stroke="#a8553f" stroke-width="2" fill="none" stroke-linecap="round"/></g>${J(0,-112)}
+<g id="nr" transform="translate(0 -98)"><rect x="-8" y="-4" width="16" height="62" rx="8" fill="${SK}"/><rect x="-9" y="-6" width="18" height="32" rx="9" fill="${SH}"/>${J(0,0)}<g id="nrf" transform="translate(0 58)"><rect x="-7" y="-4" width="14" height="54" rx="7" fill="${SK}"/><ellipse id="nrh" cx="0" cy="56" rx="8" ry="10" fill="${SK}"/>${J(0,0)}${J(0,56)}</g></g></g></g><g id="trail"></g>`;
+function makeFig(view){
+ const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 300 340");s.setAttribute("role","img");s.setAttribute("aria-label","Exercise demonstration figure");
+ const X=view=="front"?150:200;
+ s.innerHTML=`<g id="root" transform="translate(${X} 322) scale(.78)">${view=="front"?FRONT:SIDE}</g>`;
+ const q=c=>s.querySelector(c),qa=c=>[...s.querySelectorAll(c)],r=d=>d*Math.PI/180,T=(e,v)=>e&&e.setAttribute("transform",v);
+ const f={el:s,view,trail:null,apply(p){
+  if(view=="front"){
+   const th=Math.max(16,82*Math.cos(r(p.h))),sh=Math.max(10,78*Math.cos(r(p.h-p.k)));
+   T(q("#bd"),`translate(0 ${-(th+sh+8)})`);
+   [0,1].forEach(i=>{q("#t"+i).setAttribute("height",th);const a=q("#s"+i);a.setAttribute("y",th);a.setAttribute("height",sh);q("#f"+i).setAttribute("cy",th+sh)});
+   const tw=r(p.tw),fo=1-p.fold;T(q("#tr"),`scale(${Math.cos(tw)} 1)`);T(q("#hd"),`translate(${Math.sin(tw)*10} 0)`);
+   const e=p.el*(1-.2*p.fold);
+   const fz=a=>p.fwd?` scale(1 ${Math.max(.3,Math.cos(r(a))).toFixed(3)})`:"";T(q("#A0"),`translate(-27 -98) rotate(${p.fwd?0:p.shL*fo})${fz(p.shL)}`);T(q("#A1"),`translate(27 -98) rotate(${p.fwd?0:-p.shR*fo})${fz(p.shR)}`);
+   T(q("#A0f"),`translate(0 58) rotate(${-e})`);T(q("#A1f"),`translate(0 58) rotate(${e})`);
+   q("#chair").setAttribute("opacity",p.h>1?1:.0);
+  }else{
+   const px=-(82*Math.sin(r(p.h))+78*Math.sin(r(p.h-p.k))),py=-(82*Math.cos(r(p.h))+78*Math.cos(r(p.h-p.k))+8);
+   T(q("#bd"),`translate(${px} ${py})`);
+   qa(".tg").forEach(e=>T(e,`rotate(${-p.h})`));qa(".sg").forEach(e=>T(e,`translate(0 82) rotate(${p.k})`));qa(".fg").forEach(e=>T(e,`translate(0 78) rotate(${p.h-p.k})`));
+   T(q("#tr"),`rotate(${p.lean}) scale(${1+.35*Math.abs(Math.sin(r(p.tw)))} 1)`);
+   T(q("#nr"),`translate(0 -98) rotate(${-p.shR})`);T(q("#far"),`translate(0 -98) rotate(${-p.shL})`);
+   T(q("#nrf"),`translate(0 58) rotate(${-p.el})`);T(q("#farf"),`translate(0 58) rotate(${-p.el})`);
+  }},
+  hands(){return view=="front"?["#A0h","#A1h"]:["#nrh"]},
+  mapPt(el){const m=s.getScreenCTM().inverse().multiply(el.getScreenCTM()),pt=s.createSVGPoint();pt.x=+el.getAttribute("cx");pt.y=+el.getAttribute("cy");return pt.matrixTransform(m)}
+ };return f}
+
+/* ===== player ===== */
+let RAF=0,TICK=null,SESS=null;
+function stopAll(){cancelAnimationFrame(RAF);clearInterval(TICK);TICK=null}
+function player(box,ex,o={}){
+ let view=o.view||ex.tv,t=0,spd=1,play=!reduce&&o.auto!==false,det=false,last=0,fig,capI=-1;
+ box.innerHTML=`<div class="stage${o.mini?" mini":""}" id="stg"></div><div class="cap" id="cap" aria-live="polite"></div>`+(o.ctl===false?"":`<input type="range" id="tl" min="0" max="1000" value="0" aria-label="Movement timeline"><div class="ctl"><button id="pp"></button><button class="ln" id="rp">↺ Replay</button><span class="seg" id="sp" aria-label="Speed">${[.5,.75,1].map(v=>`<button data-v="${v}" class="${v==1?"on":""}">${v}x</button>`).join("")}</span></div><div class="ctl"><span class="seg" id="vw" aria-label="View"><button data-v="front" class="${view=="front"?"on":""}">Front</button><button data-v="side" class="${view=="side"?"on":""}">Side</button></span><span class="seg"><button id="dt" aria-pressed="false">Show joints</button></span></div><p class="mu">Dashed line = hand movement path · Prototype demo, not yet reviewed by an expert</p>`);
+ const stg=box.querySelector("#stg"),cap=box.querySelector("#cap"),tl=box.querySelector("#tl"),pp=box.querySelector("#pp");
+ function build(){fig=makeFig(view);stg.innerHTML="";stg.appendChild(fig.el);stg.classList.toggle("det",det);fig.el.classList.toggle("det",det);
+  const g=fig.el.querySelector("#trail");const ns="http://www.w3.org/2000/svg";
+  fig.hands().forEach((h,i)=>{const pts=[];for(let n=0;n<=60;n++){fig.apply(poseAt(ex,ex.dur*n/60));const e=fig.el.querySelector(h);if(!e.getScreenCTM())return;const p=fig.mapPt(e);pts.push(p.x.toFixed(1)+","+p.y.toFixed(1))}
+   const pl=document.createElementNS(ns,"polyline");pl.setAttribute("points",pts.join(" "));pl.setAttribute("fill","none");pl.setAttribute("stroke","#d9822b");pl.setAttribute("stroke-width","2.5");pl.setAttribute("stroke-dasharray","6 6");pl.setAttribute("stroke-linecap","round");
+   const c=document.createElementNS(ns,"circle");const [x,y]=pts[0].split(",");c.setAttribute("cx",x);c.setAttribute("cy",y);c.setAttribute("r","5");c.setAttribute("fill","#2f7d4f");fig.el.querySelector("#root").insertAdjacentElement("afterend",pl);pl.after(c)});
+  draw()}
+ function draw(){fig.apply(poseAt(ex,t));if(tl)tl.value=Math.round(t/ex.dur*1000);let i=0;ex.cap.forEach((c,n)=>{if(t>=c[0])i=n});if(i!=capI){capI=i;cap.textContent=ex.cap[i][1];if(play&&o.speak)speak(ex.cap[i][1])}}
+ function label(){if(pp){pp.textContent=play?"❚❚ Pause":"▶ Play";pp.setAttribute("aria-label",play?"Pause":"Play")}}
+ function loop(ts){if(!stg.isConnected)return;const dt=Math.min(.1,(ts-last)/1000||0);last=ts;if(play){t+=dt*spd;if(t>=ex.dur){t-=ex.dur;capI=-1;o.onLoop&&o.onLoop()}draw()}RAF=requestAnimationFrame(loop)}
+ if(tl){tl.oninput=()=>{t=tl.value/1000*ex.dur;draw()};
+  pp.onclick=()=>{play=!play;label()};box.querySelector("#rp").onclick=()=>{t=0;capI=-1;play=true;label();draw()};
+  box.querySelector("#sp").onclick=e=>{const v=e.target.dataset.v;if(!v)return;spd=+v;[...e.currentTarget.children].forEach(b=>b.classList.toggle("on",b==e.target))};
+  box.querySelector("#vw").onclick=e=>{const v=e.target.dataset.v;if(!v||v==view)return;view=v;[...e.currentTarget.children].forEach(b=>b.classList.toggle("on",b==e.target));build()};
+  box.querySelector("#dt").onclick=e=>{det=!det;e.target.setAttribute("aria-pressed",det);e.target.classList.toggle("on",det);stg.classList.toggle("det",det);fig.el.classList.toggle("det",det)}}
+ cancelAnimationFrame(RAF);build();label();RAF=requestAnimationFrame(loop);
+ return{pause(){play=false;label()},resume(){play=true;label()},get playing(){return play}}}
+function thumb(el,ex){const f=makeFig(ex.tv);f.el.style.cssText="width:100%;height:100%";el.appendChild(f.el);f.apply(poseAt(ex,ex.tt))}
+
+/* ===== pages ===== */
+const NAV=[["home","Home","M3 11l9-8 9 8v10H3z"],["lib","Exercises","M12 4a2 2 0 100 4 2 2 0 000-4M12 9v6M8 11l4 1 4-1M12 15l-3 6M12 15l3 6"],["prog","Progress","M4 20V10M10 20V4M16 20v-8M22 20H2"],["care","Carers","M12 21s-8-5-8-11a4 4 0 018-1 4 4 0 018 1c0 6-8 11-8 11z"],["set","Profile","M12 12a4 4 0 100-8 4 4 0 000 8M4 21c0-4 4-6 8-6s8 2 8 6"]];
+let R={p:location.hash.slice(1)||"home",id:"arm",ob:0};
+function go(p,id){if(id)R.id=id;R.p=p;if(location.hash.slice(1)!=p)location.hash=p;render()}
+/* Browser Back during a running session: keep what was actually done instead of silently dropping it */
+function leaveSession(){const s=SESS;SESS=null;stopCam();if(s&&s.stage=="run"&&s.el>0){addSession({ex:s.ex,start:s.start,dur:Math.round(s.el),reps:s.reps,status:"stopped"});return true}return false}
+addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(h&&h!=R.p){const saved=SESS&&R.p=="session"&&h!="session"&&leaveSession();R.p=h;render();if(saved)toast("You left during an exercise. What you did was saved as stopped early.")}});
+const days=()=>{const a=[];for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);a.push(d)}return a};
+const sameDay=(iso,d)=>{const x=new Date(iso);return x.getFullYear()==d.getFullYear()&&x.getMonth()==d.getMonth()&&x.getDate()==d.getDate()};
+const card=e=>`<div class="bx row"><div class="th" data-th="${e.id}"></div><div class="g"><h3>${e.name}</h3><div class="mu">${e.why}</div><div style="margin:6px 0"><span class="tag${e.sup?" w2":""}">${e.sup?"Carer recommended nearby":"Seated exercise"}</span> <span class="tag">Prototype demo</span> ${CAMERA_OK.has(e.id)?'<span class="tag">Camera counting</span>':'<span class="tag w2">Demo animation only</span>'}</div><button class="ln" data-go="detail:${e.id}">View preview and details</button></div></div>`;
+const PG={
+onb(){const s=[["Meet PIZZA","A home exercise assistant for people with Parkinson's. Watch the demo, practice to the rhythm, and keep activity records on your own device."],["Learn the exercises","Watch the demo figure step by step, adjust the speed, and switch between front and side views before you practice for real."],["Use it safely","PIZZA is an activity-support tool, not a diagnostic tool, and it does not replace a physiotherapist. Exercises with a fall risk need a carer nearby. All data stays on this device and is not sent anywhere."]][R.ob];
+ return `<div class="logo">PIZZA</div><p class="mu">Parkinson’s home activity coach</p><div id="pv" class="stage mini" style="margin:14px 0"></div><h1>${s[0]}</h1><p>${s[1]}</p><div class="dots">${[0,1,2].map(i=>`<i class="${i==R.ob?"on":""}"></i>`).join("")}</div><div class="row">${R.ob?`<button class="ln g" data-act="obb">Back</button>`:""}<button class="g" data-act="obn">${R.ob==2?"Get started":"Next"}</button></div>`},
+home(){const n=DB.set.name?" "+esc(DB.set.name):"",td=DB.sessions.filter(s=>sameDay(s.start,new Date())),m=mn(sumDur(td)),nx=EX.find(e=>!td.some(s=>s.ex==e.id&&s.status=="completed"))||EX[0],last=DB.sessions[DB.sessions.length-1];
+ return `<p class="mu">${new Date().toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p><h1>Hello${n}</h1>
+ <div class="bx"><span class="tag w2">Sample program (not a treatment prescription)</span><h3 style="margin-top:8px">Next exercise: ${nx.name}</h3><p class="mu">${nx.why}</p><button class="w" data-go="detail:${nx.id}">View preview and start</button></div>
+ <h2>Today</h2><div class="bx row"><div class="g"><div class="big">${td.length}</div><div class="mu">Sessions</div></div><div class="g"><div class="big">${m}</div><div class="mu">minutes</div></div></div>
+ ${last?`<div class="bx"><b>Latest:</b> ${esc(exOf(last.ex).name)} · ${fmt(last.dur)} · ${last.status=="completed"?"Completed as planned":"Stopped early"}</div>`:`<div class="bx mu">No exercise history yet. Start by previewing an exercise.</div>`}
+ <div class="row"><button class="g" data-go="lib">Exercise library</button><button class="ln g" data-go="learn">Knowledge center</button></div>
+ ${inAppNote()}<div class="note">General tips: clear the space, wear snug-fitting shoes, and stop immediately if you feel unwell.</div>`},
+lib(){return `<h1>Exercise library</h1><p class="mu">All demos are prototypes and have not yet been reviewed by a physiotherapist.</p>`+Object.keys(CATS).map(c=>`<h2>${CATS[c]}</h2>`+EX.filter(e=>e.cat==c).map(card).join("")+LOCK.filter(l=>l[0]==c).map(l=>`<div class="bx"><h3>${l[1]}</h3><div class="mu">${l[2]}</div><span class="tag w2">In development</span></div>`).join("")).join("")},
+detail(){const e=exOf(R.id);return `<button class="ln" data-go="lib" style="min-height:44px">‹ Back</button><h1>${e.name}</h1><div class="mu">${e.why}</div><div class="sp"></div>${inAppNote()}<div id="pv"></div>
+ <h2>Steps</h2><ol>${e.steps.map(s=>`<li>${s}</li>`).join("")}</ol><h2>Precautions</h2><ul>${e.warn.map(s=>`<li>${s}</li>`).join("")}</ul>
+ <div class="note">Sample target: ${TARGET} reps. This is a placeholder, not a prescription; ask your physiotherapist or doctor what is right for you ·${e.sup?"A carer should be nearby for this exercise":"This exercise is done seated"}</div><button class="w" data-go="session:${e.id}">Start exercise</button>`},
+session(){const e=exOf(R.id);if(!SESS)return `<h1>Before you start: ${e.name}</h1><div class="bx"><label class="chk"><input type="checkbox" class="ck"><span>The area is clear and non-slip, with a sturdy chair or handrail</span></label><label class="chk"><input type="checkbox" class="ck"><span>I understand this exercise has not been reviewed by a physiotherapist or doctor, and I will ask them if I am unsure</span></label>${e.sup?`<label class="chk"><input type="checkbox" class="ck"><span>A carer is nearby throughout the exercise</span></label>`:""}<label class="chk"><input type="checkbox" class="ck"><span>I feel ready and will stop immediately if I feel unwell</span></label></div><div class="note">The demo is a prototype, not a certified exercise</div><div class="row"><button class="ln g" data-go="detail:${e.id}">Back</button><button class="g" id="st" disabled>Start exercise</button></div>`;
+ if(SESS.cam)return camPage(e);
+ return `<h2 style="margin-top:0">${e.name}</h2><div id="pv"></div><div class="note">${esc(SESS.camNote||PRACTICE)}</div><div class="bx row"><div class="g"><div class="mu">Time</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">Rep</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">Pause</button><button class="dg g" id="en">End exercise</button></div>`},
+done(){const s=DB.sessions[DB.sessions.length-1];if(!s)return PG.home();return `<h1>${s.status=="completed"?"Well done":"Exercise saved"}</h1><div class="bx"><b>${esc(exOf(s.ex).name)}</b><div class="mu">Time ${fmt(s.dur)} · ${s.reps} reps · ${s.status=="completed"?"Completed as planned":"Stopped early"}</div></div><div class="row"><button class="g" data-go="prog">View progress</button><button class="ln g" data-go="home">Back to home</button></div>`},
+prog(){const ds=days(),v=ds.map(d=>sumDur(DB.sessions.filter(s=>sameDay(s.start,d)))/60),mx=Math.max(5,...v),cnt={};DB.sessions.forEach(s=>cnt[s.ex]=(cnt[s.ex]||0)+1);const fav=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+ if(!DB.sessions.length)return `<h1>Progress</h1><div class="bx"><h3>No data yet</h3><p class="mu">After your first exercise, your history and weekly chart will appear here.</p><button data-go="lib">Choose an exercise</button></div>`;
+ return `<h1>Progress</h1><p class="mu">Recorded as actually done, not a disease assessment score</p><div class="bx row"><div class="g"><div class="big">${DB.sessions.length}</div><div class="mu">Sessions</div></div><div class="g"><div class="big">${mn(sumDur(DB.sessions))}</div><div class="mu">Total minutes</div></div></div>
+ <div class="bx"><h3>Exercise time, last 7 days (minutes)</h3><svg viewBox="0 0 280 130" width="100%" role="img" aria-label="Daily exercise time chart">${v.map((x,i)=>{const hh=x>0?Math.max(4,x/mx*90):0;return `<rect x="${i*40+8}" y="${100-hh}" width="26" height="${hh}" rx="5" fill="var(--pr)"/><text x="${i*40+21}" y="118" text-anchor="middle" font-size="11" fill="var(--mu)">${ds[i].toLocaleDateString("en-US",{weekday:"narrow"})}</text><text x="${i*40+21}" y="${96-hh}" text-anchor="middle" font-size="11" fill="var(--ink)">${x>0?mn(x*60):""}</text>`}).join("")}</svg></div>
+ ${fav?`<div class="bx">Most frequent exercise: <b>${esc(exOf(fav[0]).name)}</b> (${fav[1]} ${fav[1]==1?"session":"sessions"})</div>`:""}<h2>History</h2>${DB.sessions.slice(-15).reverse().map(s=>`<div class="bx"><b>${esc(exOf(s.ex).name)}</b> <span class="tag${s.status=="completed"?"":" w2"}">${s.status=="completed"?"Done":"Stopped"}</span><div class="mu">${new Date(s.start).toLocaleString("en-US")} · ${fmt(s.dur)} · ${s.reps} reps</div></div>`).join("")}`},
+care(){return `<h1>Carers and physiotherapists</h1><div class="note"><b>Sample data for demonstration</b> Nothing is connected or sent to anyone else yet. Your exercise data stays on this device only.</div>
+ <div class="bx"><h3>Carer (sample)</h3><div class="mu">Somsri · Daughter</div></div><div class="bx"><h3>Physiotherapist (sample)</h3><div class="mu">Sample Physiotherapist · Sample Hospital</div></div>
+ <h2>Assigned program (sample)</h2>${EX.map(e=>`<div class="bx row"><div class="g"><b>${e.name}</b><div class="mu">${TARGET} reps · ${e.sup?"Carer required":"Seated exercise"}</div></div><span class="tag w2">Not yet reviewed</span></div>`).join("")}
+ <div class="bx"><h3>Summary report</h3><p class="mu">In the future, you will be able to share a summary with your physiotherapist, only with your consent. Not enabled yet.</p><button class="ln w" data-go="prog">View my history</button></div>`},
+learn(){return `<button class="ln" data-go="home" style="min-height:44px">‹ Back</button><h1>Knowledge center</h1><p class="mu">Videos open directly from the source website. PIZZA does not copy or embed videos.</p>
+ ${[["Chulalongkorn Parkinson Center of Excellence videos","chulapd.org","Thai-language video library on Parkinson's disease and self-care","https://www.chulapd.org/videos","General knowledge"],["Exercise – Parkinson’s Foundation","parkinson.org","Guidelines and examples of exercise for people with Parkinson's (in English)","https://www.parkinson.org/living-with-parkinsons/treatment/exercise","Exercise"]].map(r=>`<div class="bx"><span class="tag">${r[4]}</span><h3 style="margin-top:6px">${r[0]}</h3><div class="mu">Source: ${r[1]}</div><p>${r[2]}</p><a class="bt ln w" href="${r[3]}" target="_blank" rel="noopener noreferrer">Open the source website ↗</a></div>`).join("")}`},
+set(){return `<h1>Profile and privacy</h1><div class="bx"><label for="nm"><b>Preferred name</b></label><br><input id="nm" value="${esc(DB.set.name)}" maxlength="30" style="font:inherit;width:100%;padding:12px;border-radius:12px;border:2px solid var(--ln);background:var(--bg);color:var(--ink);margin-top:6px"></div>
+ <div class="bx"><b>Font size</b><div class="ctl"><span class="seg" id="fs">${[["Normal",1],["Large",1.2],["Extra large",1.4]].map(a=>`<button data-v="${a[1]}" class="${DB.set.fs==a[1]?"on":""}">${a[0]}</button>`).join("")}</span></div></div>
+ <div class="bx"><label class="chk"><input type="checkbox" id="vc" ${DB.set.voice?"checked":""}><span><b>English voice narration</b><br><span class="mu">Depends on the voices your device supports</span></span></label></div>
+ <div class="bx"><h3>Privacy</h3><p class="mu">Exercise data is stored in this device's browser only. No account, and no data or images are sent to a server. If you clear browser data, your history will be lost.</p><button class="dg w" id="clr">Delete all data on this device</button></div>
+ <div class="note">PIZZA is an activity-support tool, not a tool to diagnose or treat disease. The demo figures are prototypes that have not yet been reviewed by an expert.</div>`}
+};
+const TARGET=5,STITLE={detail:1,session:1,done:1};
+const camBlocker=id=>!CAMERA_OK.has(id)?"Camera counting is not available for this exercise yet. "+PRACTICE:!window.PizzaCore?"The camera engine could not be loaded. "+PRACTICE:!navigator.mediaDevices?"The camera needs a secure page (HTTPS). "+PRACTICE:"";
+const camPage=e=>`<h2 style="margin-top:0">${e.name}</h2><div class="cam"><video id="cv" playsinline muted autoplay></video><span class="tag qi" id="qi">Starting camera…</span></div><div class="cap" id="cap2" aria-live="polite">Allow the camera when your browser asks. The video stays on this device. The first load downloads about 15 MB, so it can take a moment.</div>
+ <div id="frm"><div class="note">Prop your phone against something at about waist height. Tap the start button, then step back about 2 m (6 ft) so your head down to your hips is in view, facing the camera, in good light. Counting begins by itself once the camera sees you clearly.</div><div class="row"><button class="ln g" id="cx">Cancel</button><button class="g" id="go" disabled>Start in 10 s</button></div><div class="sp"></div><button class="ln w" id="fb" hidden>Skip the camera and use practice mode</button></div>
+ <div id="run" hidden><div class="bx row"><div class="g"><div class="mu">Time</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">Rep</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">Pause</button><button class="dg g" id="en">End exercise</button></div></div>`;
+let CAM=null;
+function stopCam(){const c=CAM;CAM=null;if(c){clearTimeout(c.timer);clearTimeout(c.cd);clearTimeout(c.wd);clearTimeout(c.fbT);try{c.ctl&&c.ctl.requestStop()}catch(e){}}}
+function finishSession(st){const s=SESS;if(!s)return;SESS=null;stopAll();stopCam();addSession({ex:s.ex,start:s.start,dur:Math.round(s.el),reps:s.reps,status:st});speak(st=="completed"?"Exercise finished, well done":"Exercise saved");go("done")}
+function tickTimer(){let last=performance.now();TICK=setInterval(()=>{const n=performance.now();if(SESS&&!SESS.paused&&!SESS.lost&&SESS.stage!="frame")SESS.el+=(n-last)/1000;last=n;const t=$("#tm");if(t)t.textContent=fmt(SESS?SESS.el:0)},250)}
+async function startCam(e){
+ const me=CAM={ctl:null,timer:0,cd:0,wd:0,fbT:0,good:false,ready:false,armed:0,left:0,frames:0,base:0,reps:0};
+ const alive=()=>CAM===me&&SESS&&SESS.cam;
+ const qi=$("#qi"),cap=$("#cap2"),go2=$("#go"),video=$("#cv");
+ video.addEventListener("loadedmetadata",()=>{if(video.videoWidth&&video.videoHeight)video.style.aspectRatio=video.videoWidth+"/"+video.videoHeight},{once:true});
+ const say=t=>{if(alive())cap.textContent=t};
+ const fallback=m=>{if(!alive())return;stopCam();SESS.cam=false;SESS.stage="run";SESS.camNote=m+(INAPP?" Try opening this page in Chrome or Safari.":"")+" "+PRACTICE;render()};
+ $("#cx").onclick=()=>{stopCam();SESS=null;go("detail",e.id)};
+ const begin=()=>{if(!alive()||SESS.stage!="frame"||!me.ctl)return;SESS.stage="run";me.ctl.startCounting();me.base=0;SESS.reps=0;$("#frm").hidden=true;$("#run").hidden=false;qi.style.display="none";say("Raise both arms slowly, as high as is comfortable.");tickTimer();
+  $("#ps").onclick=()=>{SESS.paused=!SESS.paused;$("#ps").textContent=SESS.paused?"Resume":"Pause"};
+  $("#en").onclick=async()=>{const was=SESS.paused;SESS.paused=true;if(await ask("End the exercise now? It will be saved as actually done.","End exercise"))finishSession(SESS.reps>=TARGET?"completed":"stopped");else if(SESS){SESS.paused=was}}};
+ /* On a phone the person cannot tap Start from 2 m away, so Start is a countdown: tap, step back, and counting begins by itself once tracking is good. */
+ const CD=10;
+ const setGo=()=>{if(!alive()||SESS.stage!="frame"||me.armed)return;go2.disabled=!me.ready;go2.textContent=me.good?"Start counting":"Start in "+CD+" s"};
+ const arm=()=>{if(!alive()||SESS.stage!="frame"||!me.ready||me.armed)return;me.armed=1;me.left=CD;go2.disabled=true;
+  const step=()=>{if(!alive()||SESS.stage!="frame")return;
+   if(me.left<=0){me.armed=2;if(me.good){begin();return}go2.textContent="Waiting for the camera to see you…";say("Counting starts as soon as the camera sees you clearly. Keep your head down to your hips in view.");return}
+   if(me.left==CD)say("Step back about 2 m so your head down to your hips is in view. Counting starts in "+CD+" seconds.");
+   go2.textContent="Starting in "+me.left+"…";if(me.left<=3)speak(String(me.left));
+   me.left--;me.cd=setTimeout(step,1000)};
+  step()};
+ go2.onclick=()=>{if(me.good)begin();else arm()};
+ $("#fb").onclick=()=>fallback("Camera counting was skipped.");
+ try{
+  const vision=await import("./vendor/mediapipe/vision_bundle.js");
+  if(!alive())return;
+  const root=new URL("vendor/",location.href).href;
+  const core=await PizzaCore.createPizzaCore({vision,assets:{wasmPath:root+"mediapipe/wasm",modelPath:root+"models/pose_landmarker_lite.task"}});
+  if(!alive())return;
+  const ctl=await core.pose.start(video,ENGINE_ID[e.id],{
+   onStatus(s){if(alive()&&s=="running"&&SESS.stage=="frame"){qi.textContent="Looking for you…";say("Stand where the camera can see you.")}},
+   onQuality(q){if(!alive()||SESS.stage!="frame")return;const good=q=="good";qi.textContent=good?"Position OK":q=="fair"?"Almost there":"Can't see you clearly";qi.className="tag qi"+(good?" good":"");clearTimeout(me.timer);me.good=false;setGo();if(good){if(me.armed!=1)say("You're in position. Hold still for a moment…");me.timer=setTimeout(()=>{if(!alive()||SESS.stage!="frame")return;me.good=true;if(me.armed==2){begin();return}setGo();if(!me.armed)say("You're in position. Press Start counting when you're ready.")},1500)}},
+   onFrame(){me.frames++},
+   onRep(n){if(!alive())return;me.reps=n;if(SESS.stage!="run")return;if(SESS.paused||SESS.lost){me.base=n-SESS.reps;return}SESS.reps=n-me.base;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("Rep "+SESS.reps);if(SESS.reps>=TARGET)finishSession("completed")},
+   onCue(c){say(c.text);if(SESS&&SESS.stage=="run")speak(c.text)},
+   onPause(){if(alive())SESS.lost=true},
+   onResume(){if(alive())SESS.lost=false},
+   onSafetyStop(){if(alive()&&SESS.stage=="run")finishSession("stopped")},
+   onDone(){if(alive()&&SESS.stage=="run")finishSession(SESS.reps>=TARGET?"completed":"stopped")},
+   onError(){}
+  },{autoSave:false,deferCounting:true});
+  if(!alive()){ctl.requestStop();return}
+  me.ctl=ctl;me.ready=true;setGo();
+  /* never leave the person stuck: warn if no frames are analysed, and always offer practice mode after a while */
+  me.wd=setTimeout(()=>{if(alive()&&SESS.stage=="frame"&&!me.frames){say("The camera is on, but no pictures are being analysed. This device may not support camera counting. You can use practice mode instead.");$("#fb").hidden=false}},10000);
+  me.fbT=setTimeout(()=>{if(alive()&&SESS.stage=="frame")$("#fb").hidden=false},15000);
+ }catch(err){
+  fallback(err&&err.name=="NotAllowedError"?"Camera permission was denied.":err&&err.name=="NotFoundError"?"No camera was found.":"The camera or the pose model could not be started on this device.");
+ }
+}
+function after(){
+ const p=R.p,e=exOf(R.id),pv=$("#pv");
+ document.querySelectorAll("[data-th]").forEach(x=>thumb(x,exOf(x.dataset.th)));
+ if(p=="onb"&&pv){const x=EX[R.ob==2?2:R.ob==1?1:0];player(pv,x,{ctl:false,mini:true})}
+ if(p=="detail")player(pv,e,{speak:false});
+ if(p=="session"){
+  if(!SESS){const ck=[...document.querySelectorAll(".ck")],b=$("#st");ck.forEach(c=>c.onchange=()=>b.disabled=!ck.every(x=>x.checked));b.onclick=()=>{const why=camBlocker(e.id);SESS={ex:e.id,start:new Date().toISOString(),el:0,reps:0,paused:false,cam:!why,camNote:why,stage:why?"run":"frame"};render()};return}
+  if(SESS.cam){startCam(e);return}
+  let ctl;const fin=finishSession;
+  ctl=player(pv,e,{ctl:false,speak:true,onLoop(){if(SESS&&!SESS.paused){SESS.reps++;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("Rep "+SESS.reps);if(SESS.reps>=TARGET)fin("completed")}}});
+  tickTimer();
+  $("#ps").onclick=()=>{SESS.paused=!SESS.paused;SESS.paused?ctl.pause():ctl.resume();$("#ps").textContent=SESS.paused?"Resume":"Pause"};
+  $("#en").onclick=async()=>{const was=SESS.paused;ctl.pause();SESS.paused=true;if(await ask("End the exercise now? It will be saved as actually done.","End exercise"))fin(SESS.reps>=TARGET?"completed":"stopped");else if(SESS){SESS.paused=was;if(!was)ctl.resume()}};
+ }
+ if(p=="set"){$("#nm").oninput=ev=>{DB.set.name=ev.target.value;save()};$("#vc").onchange=ev=>{DB.set.voice=ev.target.checked;save()};
+  $("#fs").onclick=ev=>{const v=ev.target.dataset.v;if(!v)return;DB.set.fs=+v;save();document.documentElement.style.fontSize=v*100+"%";[...$("#fs").children].forEach(b=>b.classList.toggle("on",b==ev.target))};
+  $("#clr").onclick=async()=>{if(await ask("Delete all history and settings on this device? This cannot be undone.","Delete all")){if(CORE_ON){try{await CORE.data.deleteAll()}catch(x){toast("Couldn't clear every stored session")}}DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};try{localStorage.removeItem(KEY)}catch(x){}document.documentElement.style.fontSize="100%";R.ob=0;go("onb")}}}
+}
+function render(){
+ stopAll();if(window.speechSynthesis&&speechSynthesis.cancel)speechSynthesis.cancel();
+ if(!DB.set.onb&&R.p!="onb")R.p="onb";
+ if(R.p!="session"&&R.p!="done")SESS=null;
+ if(!SESS&&CAM)stopCam();
+ if(!PG[R.p])R.p="home";
+ const m=$("#main");m.innerHTML=PG[R.p]();
+ const on=R.p=="onb";$("#nav").style.display=on?"none":"";if(on)m.style.marginLeft="auto";else m.style.marginLeft="";
+ $("#nav").innerHTML=NAV.map(n=>`<button data-go="${n[0]}" class="${(R.p==n[0]||(["detail","session","done"].includes(R.p)&&n[0]=="lib"))?"on":""}" aria-label="${n[1]}"><svg viewBox="0 0 24 24"><path d="${n[2]}"/></svg>${n[1]}</button>`).join("");
+ after();scrollTo(0,0);m.focus({preventScroll:true});
+}
+document.addEventListener("click",async e=>{
+ const g=e.target.closest("[data-go]");if(g){const [p,id]=g.dataset.go.split(":");
+  if(SESS&&R.p=="session"&&p!="session"){if(SESS.cam&&SESS.stage=="frame"){stopCam();SESS=null}else{if(!(await ask("You're exercising. Exit and save what you actually did?","Exit and save")))return;addSession({ex:SESS.ex,start:SESS.start,dur:Math.round(SESS.el),reps:SESS.reps,status:"stopped"});SESS=null;stopCam()}}
+  go(p,id);return}
+ const a=e.target.closest("[data-act]");if(!a)return;
+ if(a.dataset.act=="obn"){if(R.ob<2){R.ob++;render()}else{DB.set.onb=true;save();go("home")}}
+ if(a.dataset.act=="obb"){R.ob--;render()}
+});
+document.documentElement.style.fontSize=(DB.set.fs||1)*100+"%";
+render();
+initCore();

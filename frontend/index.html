@@ -77,7 +77,7 @@ main>*{animation:rise .35s ease both}
 @media(prefers-reduced-motion:reduce){main>*{animation:none}button,.bt,.bx{transition:none}}
 /* ===== camera session ===== */
 .cam{position:relative;border-radius:24px;overflow:hidden;background:#101816;border:1px solid var(--ln)}
-.cam video{display:block;width:100%;max-height:56vh;aspect-ratio:4/3;object-fit:cover;transform:scaleX(-1)}
+.cam video{display:block;width:100%;max-height:56vh;aspect-ratio:4/3;object-fit:contain;transform:scaleX(-1)}
 .cam .qi{position:absolute;left:12px;top:12px}.tag.qi.good{background:var(--pr);color:var(--on)}
 </style>
 </head>
@@ -272,24 +272,36 @@ set(){return `<h1>Profile and privacy</h1><div class="bx"><label for="nm"><b>Pre
 };
 const TARGET=5,STITLE={detail:1,session:1,done:1};
 const camBlocker=id=>!CAMERA_OK.has(id)?"Camera counting is not available for this exercise yet. "+PRACTICE:!window.PizzaCore?"The camera engine could not be loaded. "+PRACTICE:!navigator.mediaDevices?"The camera needs a secure page (HTTPS). "+PRACTICE:"";
-const camPage=e=>`<h2 style="margin-top:0">${e.name}</h2><div class="cam"><video id="cv" playsinline muted autoplay></video><span class="tag qi" id="qi">Starting camera…</span></div><div class="cap" id="cap2" aria-live="polite">Allow the camera when your browser asks. The video stays on this device.</div>
- <div id="frm"><div class="note">Stand about 2 m (6 ft) from the camera so your head down to your hips is in view, facing the camera, in good light.</div><div class="row"><button class="ln g" id="cx">Cancel</button><button class="g" id="go" disabled>Start counting</button></div></div>
+const camPage=e=>`<h2 style="margin-top:0">${e.name}</h2><div class="cam"><video id="cv" playsinline muted autoplay></video><span class="tag qi" id="qi">Starting camera…</span></div><div class="cap" id="cap2" aria-live="polite">Allow the camera when your browser asks. The video stays on this device. The first load downloads about 15 MB, so it can take a moment.</div>
+ <div id="frm"><div class="note">Prop your phone against something at about waist height. Tap the start button, then step back about 2 m (6 ft) so your head down to your hips is in view, facing the camera, in good light. Counting begins by itself once the camera sees you clearly.</div><div class="row"><button class="ln g" id="cx">Cancel</button><button class="g" id="go" disabled>Start in 10 s</button></div><div class="sp"></div><button class="ln w" id="fb" hidden>Skip the camera and use practice mode</button></div>
  <div id="run" hidden><div class="bx row"><div class="g"><div class="mu">Time</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">Rep</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">Pause</button><button class="dg g" id="en">End exercise</button></div></div>`;
 let CAM=null;
-function stopCam(){const c=CAM;CAM=null;if(c){clearTimeout(c.timer);try{c.ctl&&c.ctl.requestStop()}catch(e){}}}
+function stopCam(){const c=CAM;CAM=null;if(c){clearTimeout(c.timer);clearTimeout(c.cd);clearTimeout(c.wd);clearTimeout(c.fbT);try{c.ctl&&c.ctl.requestStop()}catch(e){}}}
 function finishSession(st){const s=SESS;if(!s)return;SESS=null;stopAll();stopCam();addSession({ex:s.ex,start:s.start,dur:Math.round(s.el),reps:s.reps,status:st});speak(st=="completed"?"Exercise finished, well done":"Exercise saved");go("done")}
 function tickTimer(){let last=performance.now();TICK=setInterval(()=>{const n=performance.now();if(SESS&&!SESS.paused&&!SESS.lost&&SESS.stage!="frame")SESS.el+=(n-last)/1000;last=n;const t=$("#tm");if(t)t.textContent=fmt(SESS?SESS.el:0)},250)}
 async function startCam(e){
- const me=CAM={ctl:null,timer:0,good:false,base:0,reps:0};
+ const me=CAM={ctl:null,timer:0,cd:0,wd:0,fbT:0,good:false,ready:false,armed:0,left:0,frames:0,base:0,reps:0};
  const alive=()=>CAM===me&&SESS&&SESS.cam;
  const qi=$("#qi"),cap=$("#cap2"),go2=$("#go"),video=$("#cv");
+ video.addEventListener("loadedmetadata",()=>{if(video.videoWidth&&video.videoHeight)video.style.aspectRatio=video.videoWidth+"/"+video.videoHeight},{once:true});
  const say=t=>{if(alive())cap.textContent=t};
  const fallback=m=>{if(!alive())return;stopCam();SESS.cam=false;SESS.stage="run";SESS.camNote=m+(INAPP?" Try opening this page in Chrome or Safari.":"")+" "+PRACTICE;render()};
  $("#cx").onclick=()=>{stopCam();SESS=null;go("detail",e.id)};
  const begin=()=>{if(!alive()||SESS.stage!="frame"||!me.ctl)return;SESS.stage="run";me.ctl.startCounting();me.base=0;SESS.reps=0;$("#frm").hidden=true;$("#run").hidden=false;qi.style.display="none";say("Raise both arms slowly, as high as is comfortable.");tickTimer();
   $("#ps").onclick=()=>{SESS.paused=!SESS.paused;$("#ps").textContent=SESS.paused?"Resume":"Pause"};
   $("#en").onclick=async()=>{const was=SESS.paused;SESS.paused=true;if(await ask("End the exercise now? It will be saved as actually done.","End exercise"))finishSession(SESS.reps>=TARGET?"completed":"stopped");else if(SESS){SESS.paused=was}}};
- go2.onclick=begin;
+ /* On a phone the person cannot tap Start from 2 m away, so Start is a countdown: tap, step back, and counting begins by itself once tracking is good. */
+ const CD=10;
+ const setGo=()=>{if(!alive()||SESS.stage!="frame"||me.armed)return;go2.disabled=!me.ready;go2.textContent=me.good?"Start counting":"Start in "+CD+" s"};
+ const arm=()=>{if(!alive()||SESS.stage!="frame"||!me.ready||me.armed)return;me.armed=1;me.left=CD;go2.disabled=true;
+  const step=()=>{if(!alive()||SESS.stage!="frame")return;
+   if(me.left<=0){me.armed=2;if(me.good){begin();return}go2.textContent="Waiting for the camera to see you…";say("Counting starts as soon as the camera sees you clearly. Keep your head down to your hips in view.");return}
+   if(me.left==CD)say("Step back about 2 m so your head down to your hips is in view. Counting starts in "+CD+" seconds.");
+   go2.textContent="Starting in "+me.left+"…";if(me.left<=3)speak(String(me.left));
+   me.left--;me.cd=setTimeout(step,1000)};
+  step()};
+ go2.onclick=()=>{if(me.good)begin();else arm()};
+ $("#fb").onclick=()=>fallback("Camera counting was skipped.");
  try{
   const vision=await import("./vendor/mediapipe/vision_bundle.js");
   if(!alive())return;
@@ -298,7 +310,8 @@ async function startCam(e){
   if(!alive())return;
   const ctl=await core.pose.start(video,ENGINE_ID[e.id],{
    onStatus(s){if(alive()&&s=="running"&&SESS.stage=="frame"){qi.textContent="Looking for you…";say("Stand where the camera can see you.")}},
-   onQuality(q){if(!alive()||SESS.stage!="frame")return;const good=q=="good";qi.textContent=good?"Position OK":q=="fair"?"Almost there":"Can't see you clearly";qi.className="tag qi"+(good?" good":"");clearTimeout(me.timer);go2.disabled=true;if(good){say("You're in position. Hold still for a moment…");me.timer=setTimeout(()=>{if(alive()&&SESS.stage=="frame"){go2.disabled=false;say("Press Start counting when you're ready.")}},1500)}},
+   onQuality(q){if(!alive()||SESS.stage!="frame")return;const good=q=="good";qi.textContent=good?"Position OK":q=="fair"?"Almost there":"Can't see you clearly";qi.className="tag qi"+(good?" good":"");clearTimeout(me.timer);me.good=false;setGo();if(good){if(me.armed!=1)say("You're in position. Hold still for a moment…");me.timer=setTimeout(()=>{if(!alive()||SESS.stage!="frame")return;me.good=true;if(me.armed==2){begin();return}setGo();if(!me.armed)say("You're in position. Press Start counting when you're ready.")},1500)}},
+   onFrame(){me.frames++},
    onRep(n){if(!alive())return;me.reps=n;if(SESS.stage!="run")return;if(SESS.paused||SESS.lost){me.base=n-SESS.reps;return}SESS.reps=n-me.base;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("Rep "+SESS.reps);if(SESS.reps>=TARGET)finishSession("completed")},
    onCue(c){say(c.text);if(SESS&&SESS.stage=="run")speak(c.text)},
    onPause(){if(alive())SESS.lost=true},
@@ -308,7 +321,10 @@ async function startCam(e){
    onError(){}
   },{autoSave:false,deferCounting:true});
   if(!alive()){ctl.requestStop();return}
-  me.ctl=ctl;
+  me.ctl=ctl;me.ready=true;setGo();
+  /* never leave the person stuck: warn if no frames are analysed, and always offer practice mode after a while */
+  me.wd=setTimeout(()=>{if(alive()&&SESS.stage=="frame"&&!me.frames){say("The camera is on, but no pictures are being analysed. This device may not support camera counting. You can use practice mode instead.");$("#fb").hidden=false}},10000);
+  me.fbT=setTimeout(()=>{if(alive()&&SESS.stage=="frame")$("#fb").hidden=false},15000);
  }catch(err){
   fallback(err&&err.name=="NotAllowedError"?"Camera permission was denied.":err&&err.name=="NotFoundError"?"No camera was found.":"The camera or the pose model could not be started on this device.");
  }

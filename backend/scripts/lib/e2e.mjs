@@ -40,9 +40,9 @@ const results = [];
 /** Records and prints one check. */
 export function check(name, ok, extra) {
   results.push(!!ok);
-  console.log(
-    `${ok ? 'PASS' : 'FAIL'}  ${name}${extra !== undefined ? `  ${JSON.stringify(extra)}` : ''}`,
-  );
+  const detail = extra !== undefined ? `  ${JSON.stringify(extra)}` : '';
+  // Values can come from server responses: keep every result on one line.
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail}`.replace(/[\r\n]+/g, ' '));
 }
 
 /** Prints the tally and exits non-zero if any check failed. */

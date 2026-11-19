@@ -2,6 +2,7 @@ import {
   errorResponse,
   guard,
   jsonResponse,
+  knownRefusal,
   readJsonBody,
   rpc,
   rpcFailure,
@@ -17,6 +18,7 @@ const KNOWN_REFUSALS = {
   account_required: 403,
   already_linked: 409,
   not_found: 404,
+  too_many_attempts: 429,
 } as const;
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
@@ -82,6 +84,8 @@ export async function handleCareLinks(
 
   const data: unknown = await res.json().catch(() => null);
   if (!isObject(data)) return errorResponse(502, 'upstream_error');
+  // A refused guess is answered as a value (so the attempt is committed and counted).
+  if (typeof data['error'] === 'string') return knownRefusal(data['error'], KNOWN_REFUSALS);
   if (request.action === 'invite') {
     const { id, code, expires_at: expiresAt } = data;
     if (typeof id !== 'string' || typeof code !== 'string' || typeof expiresAt !== 'string') {

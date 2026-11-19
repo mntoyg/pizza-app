@@ -29,7 +29,7 @@ Animation 4 ท่า: ยกแขนสูง, นั่งยกแขนส�
 | `ai/` | Pose engine, ตัวนับ 5 ท่า, safety guard (หยุดเมื่อกดหยุด/หลุดเฟรม/กล้องหยุด/ท่าเสี่ยงล้มที่ผู้ดูแลยังไม่ยืนยัน), `PizzaCore` (IndexedDB, consent, sync, ส่งออก/ลบข้อมูล) |
 | `backend/` | ตาราง `profiles`, `consents` (+ประวัติแก้ไม่ได้), `exercises`, `sessions`, `care_links`, `audit_log` · RLS ทุกตาราง · Edge Functions `sessions-batch` `consents` `delete-me` `care-links` `patient-summary` |
 
-**Care link (ผู้ป่วย ↔ ผู้ดูแล/นักกายภาพ):** ผู้ป่วยเป็นฝ่ายเชิญด้วยโค้ดใช้ครั้งเดียว (หมดอายุ 7 วัน, เก็บเฉพาะ hash) ฝั่งผู้รับเชิญต้องเป็นบัญชีจริง
+**Care link (ผู้ป่วย ↔ ผู้ดูแล/นักกายภาพ):** ผู้ป่วยเป็นฝ่ายเชิญด้วยโค้ดใช้ครั้งเดียว (หมดอายุ 7 วัน, เก็บเฉพาะ hash, เดาโค้ดผิด 5 ครั้งใน 15 นาทีจะถูกล็อก) ฝั่งผู้รับเชิญต้องเป็นบัญชีจริง
 บุคคลที่สามไม่มีสิทธิ์อ่านตาราง `sessions` ตรงๆ — อ่านได้ผ่านฟังก์ชัน `patient_summary()` ที่เดียว ซึ่งเช็กว่ามี link ที่ active **และ** ผู้ป่วยยังให้ consent `share_with_physio`
 แล้วบันทึก `audit_log` ใน transaction เดียวกัน (อ่านโดยไม่ถูกบันทึกไม่ได้) ผู้ป่วยดูประวัติว่าใครเปิดดูได้ ถอน consent หรือยกเลิก link แล้วตัดสิทธิ์ทันที
 
@@ -47,7 +47,7 @@ cd backend
 npm run db:start            # เปิด stack local (ครั้งแรกจะดึง image)
 npm run e2e                 # sessions / consent / ลบบัญชี        (28 checks)
 npm run e2e:upgrade         # anonymous -> email โดย user id เดิม  (10 checks)
-npm run e2e:care            # care link + patient-summary + audit  (33 checks)
+npm run e2e:care            # care link + patient-summary + audit  (35 checks)
 npm run db:stop
 ```
 ตั้งบทบาท physio ให้บัญชีที่มีอยู่แล้ว (เฉพาะ stack local — สคริปต์ปฏิเสธ URL ที่ไม่ใช่ localhost; ผู้ใช้เลื่อนบทบาทตัวเองไม่ได้):
@@ -56,10 +56,11 @@ cd backend && npm run admin:set-role -- doctor@example.test physio
 ```
 
 ### สถานะการตรวจสอบ (ตามจริง)
-- ผ่านแล้ว: `ai/` 275 tests · `backend/` 249 tests · typecheck / eslint / prettier สะอาด · e2e บน Supabase local 28/28, 10/10, 33/33 · `supabase db lint` สะอาด · มี mutation check กับกฎความปลอดภัย
-- **ยังไม่ได้ทดสอบ:** การนับท่าด้วยกล้องและโมเดล MediaPipe จริง (ทดสอบด้วย landmark สังเคราะห์เท่านั้น; ไฟล์โมเดลไม่ได้อยู่ใน repo) · โปรเจกต์ Supabase บน cloud (ใช้ local stack) · เครื่องจริง/screen reader
+- ผ่านแล้ว: `ai/` 275 tests · `backend/` 263 tests · typecheck / eslint / prettier สะอาด · e2e บน Supabase local 28/28, 10/10, 35/35 · `supabase db lint` สะอาด · มี mutation check กับกฎความปลอดภัย
+- ทดสอบกล้องและโมเดล MediaPipe จริงแล้ว **เฉพาะท่ายกแขน** (1 คน 1 เซสชัน: ยกจริง 5 ครั้ง ระบบนับได้ 5 ครั้ง) ต้องยืนให้เห็นศีรษะถึงสะโพก ถ้าสะโพกอยู่นอกเฟรม ระบบจะวัดมุมไม่ได้และไม่นับ (fail-safe) — รายละเอียดใน `docs/INTEGRATION.md`
+- **ยังไม่ได้ทดสอบ:** ท่าอื่นอีก 4 ท่าด้วยกล้องจริง (ทดสอบด้วย landmark สังเคราะห์เท่านั้น) · แสงน้อย/หลายคนในเฟรม/มือสั่น · โปรเจกต์ Supabase บน cloud (ใช้ local stack) · เครื่องจริง/screen reader (ไฟล์โมเดลไม่ได้อยู่ใน repo)
 - ค่าเกณฑ์ของทุกท่า (มุม/จำนวนครั้ง) เป็น **placeholder** และทุกท่าเป็น draft จนกว่านักกายภาพจะอนุมัติ
-- ยังไม่มี: LLM coach/RAG · ส่งอีเมลเชิญอัตโนมัติ · rate limit การเดาโค้ดเชิญ
+- ยังไม่มี: LLM coach/RAG · ส่งอีเมลเชิญอัตโนมัติ
 - แอปเป็นเครื่องมือส่งเสริมกิจกรรม **ไม่วินิจฉัย ไม่รักษา และไม่อ้างว่าตรวจจับ freezing หรือการล้มได้** — ตัวเลขที่ผู้ดูแลเห็นเป็นเพียงจำนวนครั้ง/เวลา ไม่ใช่คะแนนทางคลินิก
 
 ## เพิ่มท่าใหม่

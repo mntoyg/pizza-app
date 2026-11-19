@@ -91,11 +91,13 @@ export async function rpcFailure(
 ): Promise<Response> {
   if (res.status === 401) return errorResponse(401, 'unauthorized');
   const body = (await res.json().catch(() => null)) as { message?: unknown } | null;
-  const message = typeof body?.message === 'string' ? body.message : '';
-  const status = Object.hasOwn(known, message) ? known[message] : undefined;
-  return status === undefined
-    ? errorResponse(502, 'upstream_error')
-    : errorResponse(status, message);
+  return knownRefusal(typeof body?.message === 'string' ? body.message : '', known);
+}
+
+/** A refusal the database reported by its short code: listed ones keep their code, others become 502. */
+export function knownRefusal(code: string, known: Readonly<Record<string, number>>): Response {
+  const status = Object.hasOwn(known, code) ? known[code] : undefined;
+  return status === undefined ? errorResponse(502, 'upstream_error') : errorResponse(status, code);
 }
 
 /** Calls PostgREST as the signed-in user, so row level security stays in force. */

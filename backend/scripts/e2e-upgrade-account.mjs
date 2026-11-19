@@ -2,48 +2,15 @@
 // must KEEP the same user id, so their consent and uploaded sessions stay theirs.
 // Usage: node scripts/e2e-upgrade-account.mjs   (needs `supabase start` with Mailpit running)
 
-import { execSync } from 'node:child_process';
+import { check, createHttp, finish, readLocalEnv } from './lib/e2e.mjs';
 
-const env = Object.fromEntries(
-  execSync('npx supabase status -o env', { encoding: 'utf8' })
-    .split(/\r?\n/)
-    .map((l) => l.match(/^([A-Z_]+)="?(.*?)"?$/))
-    .filter(Boolean)
-    .map((m) => [m[1], m[2]]),
-);
+const env = readLocalEnv();
 const API = env.API_URL;
 const ANON = env.ANON_KEY;
 const SERVICE = env.SERVICE_ROLE_KEY;
+const http = createHttp(ANON);
 const MAIL = env.MAILPIT_URL;
 const FN = `${API}/functions/v1`;
-
-const results = [];
-const check = (name, ok, extra) => {
-  results.push(!!ok);
-  console.log(
-    `${ok ? 'PASS' : 'FAIL'}  ${name}${extra !== undefined ? `  ${JSON.stringify(extra)}` : ''}`,
-  );
-};
-
-async function http(url, { method = 'GET', token, key = ANON, body } = {}) {
-  const res = await fetch(url, {
-    method,
-    headers: {
-      apikey: key,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  const text = await res.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    /* not json */
-  }
-  return { status: res.status, json, text };
-}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const email = `upgrade-${Date.now()}@example.test`;
@@ -136,6 +103,4 @@ try {
 } catch (e) {
   check(`no unexpected exception: ${e?.message ?? e}`, false);
 }
-const failed = results.filter((r) => !r).length;
-console.log(`\n${results.length - failed}/${results.length} passed`);
-process.exit(failed ? 1 : 0);
+finish();

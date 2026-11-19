@@ -5,50 +5,15 @@
 // those through the admin API with the local service key; that key is used only for this test
 // setup and cleanup, never by the functions under test.
 
-import { execSync } from 'node:child_process';
+import { check, createHttp, finish, readLocalEnv } from './lib/e2e.mjs';
 import { randomUUID } from 'node:crypto';
 
-const env = Object.fromEntries(
-  execSync('npx supabase status -o env', { encoding: 'utf8' })
-    .split(/\r?\n/)
-    .map((l) => l.match(/^([A-Z_]+)="?(.*?)"?$/))
-    .filter(Boolean)
-    .map((m) => [m[1], m[2]]),
-);
+const env = readLocalEnv();
 const API = env.API_URL;
 const ANON = env.ANON_KEY;
 const SERVICE = env.SERVICE_ROLE_KEY;
-if (!API || !ANON || !SERVICE) throw new Error('Could not read API_URL/ANON_KEY/SERVICE_ROLE_KEY');
+const http = createHttp(ANON);
 const FN = `${API}/functions/v1`;
-
-const results = [];
-const check = (name, ok, extra) => {
-  results.push({ name, ok: !!ok });
-  console.log(
-    `${ok ? 'PASS' : 'FAIL'}  ${name}${extra !== undefined ? `  ${JSON.stringify(extra)}` : ''}`,
-  );
-};
-
-async function http(url, { method = 'GET', token, key = ANON, body, headers = {} } = {}) {
-  const res = await fetch(url, {
-    method,
-    headers: {
-      apikey: key,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...headers,
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  const text = await res.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    /* not json */
-  }
-  return { status: res.status, json, text };
-}
 
 async function anonymousUser() {
   const r = await http(`${API}/auth/v1/signup`, { method: 'POST', body: { data: {} } });
@@ -106,7 +71,8 @@ try {
   const physio = await realUser('physio');
   const carer = await realUser('carer');
   const anonMember = await anonymousUser();
-  users.push(patient, other, physio, carer, anonMember);
+  const guesser = await realUser('guesser');
+  users.push(patient, other, physio, carer, anonMember, guesser);
 
   await setConsent(patient, 'sync_sessions', true);
   const upload = await http(`${FN}/sessions-batch`, {
@@ -297,6 +263,29 @@ try {
   const leave = await careLinks(carer, { action: 'revoke', linkId: rightEmail.json.linkId });
   check('a member can leave a link themselves', leave.status === 200, leave.json);
 
+  // ---- guessing invitation codes is rate limited (5 wrong codes -> locked out)
+  const guesses = [];
+  for (let i = 0; i < 5; i++) {
+    guesses.push(
+      (await careLinks(guesser, { action: 'accept', code: '0000-0000-0000-0000' })).status,
+    );
+  }
+  const realInvite = await careLinks(patient, { action: 'invite', role: 'carer' });
+  const locked = await careLinks(guesser, { action: 'accept', code: realInvite.json.code });
+  check(
+    'five wrong codes are refused (404), then the user is locked out even with a valid code (429)',
+    guesses.every((s) => s === 404) &&
+      locked.status === 429 &&
+      locked.json?.error === 'too_many_attempts',
+    [guesses.join(), locked.status],
+  );
+  const otherUserOk = await careLinks(carer, { action: 'accept', code: realInvite.json.code });
+  check(
+    'the lockout is per user: another account can still use the code',
+    otherUserOk.status === 200,
+    otherUserOk.status,
+  );
+
   // ---- auth edge cases
   const noToken = await http(`${FN}/patient-summary`, {
     method: 'POST',
@@ -340,6 +329,4 @@ try {
   }
 }
 
-const failed = results.filter((r) => !r.ok);
-console.log(`\n${results.length - failed.length}/${results.length} passed`);
-process.exit(failed.length ? 1 : 0);
+finish();

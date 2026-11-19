@@ -91,6 +91,27 @@ describe('care-links', () => {
       expect(f.calls).toHaveLength(0);
     });
 
+    it('turns a refused guess (answered as a value so it can be counted) into 404', async () => {
+      const f = fakeFetch(() => json(200, { error: 'invalid_invite' }));
+      const res = await call({ action: 'accept', code: 'ABCD-ABCD-ABCD-ABCD' }, f);
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: 'invalid_invite' });
+    });
+
+    it('does not pass on an unknown error value from the database', async () => {
+      const f = fakeFetch(() => json(200, { error: 'some_internal_rule' }));
+      const res = await call({ action: 'accept', code: 'ABCD-ABCD-ABCD-ABCD' }, f);
+      expect(res.status).toBe(502);
+      expect(JSON.stringify(await res.json())).not.toContain('some_internal_rule');
+    });
+
+    it('tells a locked-out user to wait (429)', async () => {
+      const f = fakeFetch(() => rpcError(400, 'P0001', 'too_many_attempts'));
+      const res = await call({ action: 'accept', code: 'ABCD-ABCD-ABCD-ABCD' }, f);
+      expect(res.status).toBe(429);
+      expect(((await res.json()) as { error: string }).error).toBe('too_many_attempts');
+    });
+
     it.each([
       ['invalid_invite', 404, 'invalid_invite'],
       ['account_required', 403, 'account_required'],

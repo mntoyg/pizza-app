@@ -5,50 +5,15 @@
 // those through the admin API with the local service key; that key is used only for this test
 // setup and cleanup, never by the functions under test.
 
-import { execSync } from 'node:child_process';
+import { check, createHttp, finish, readLocalEnv } from './lib/e2e.mjs';
 import { randomUUID } from 'node:crypto';
 
-const env = Object.fromEntries(
-  execSync('npx supabase status -o env', { encoding: 'utf8' })
-    .split(/\r?\n/)
-    .map((l) => l.match(/^([A-Z_]+)="?(.*?)"?$/))
-    .filter(Boolean)
-    .map((m) => [m[1], m[2]]),
-);
+const env = readLocalEnv();
 const API = env.API_URL;
 const ANON = env.ANON_KEY;
 const SERVICE = env.SERVICE_ROLE_KEY;
-if (!API || !ANON || !SERVICE) throw new Error('Could not read API_URL/ANON_KEY/SERVICE_ROLE_KEY');
+const http = createHttp(ANON);
 const FN = `${API}/functions/v1`;
-
-const results = [];
-const check = (name, ok, extra) => {
-  results.push({ name, ok: !!ok });
-  console.log(
-    `${ok ? 'PASS' : 'FAIL'}  ${name}${extra !== undefined ? `  ${JSON.stringify(extra)}` : ''}`,
-  );
-};
-
-async function http(url, { method = 'GET', token, key = ANON, body, headers = {} } = {}) {
-  const res = await fetch(url, {
-    method,
-    headers: {
-      apikey: key,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...headers,
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  const text = await res.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    /* not json */
-  }
-  return { status: res.status, json, text };
-}
 
 async function anonymousUser() {
   const r = await http(`${API}/auth/v1/signup`, { method: 'POST', body: { data: {} } });
@@ -364,6 +329,4 @@ try {
   }
 }
 
-const failed = results.filter((r) => !r.ok);
-console.log(`\n${results.length - failed.length}/${results.length} passed`);
-process.exit(failed.length ? 1 : 0);
+finish();

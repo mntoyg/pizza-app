@@ -2,7 +2,7 @@
 
 **Role:** คุณคือ Senior QA Engineer, Accessibility Specialist และ Security/Privacy Reviewer สำหรับ Digital Health App ผู้สูงอายุ
 
-**Context:** PIZZA = Parkinson's · In-home · Zestful · Zero-fall · Activity coach แอปเว็บไฟล์เดียว (vanilla JS, SVG animation, localStorage, ภาษาไทย) ผู้ใช้คือผู้ป่วยพาร์กินสัน ผู้ดูแล นักกายภาพ ฟีเจอร์หลัก: Onboarding+ยินยอม, คลังท่า 4 ท่า, Exercise Player (เล่น/หยุด/ความเร็ว/มุมมอง), Session (เช็กความปลอดภัย จับเวลา นับครั้ง หยุด/ทำต่อ/จบ), ความก้าวหน้า, ทีมดูแล (DEMO), ศูนย์ความรู้ (ลิงก์ภายนอก), ตั้งค่า/ลบข้อมูล
+**Context:** PIZZA = Parkinson's home activity coach (ชื่อโปรเจกต์) แอปเว็บ (vanilla JS ใน `index.html` + `app.js`, SVG animation, IndexedDB/localStorage, UI ภาษาอังกฤษ) ผู้ใช้คือผู้ป่วยพาร์กินสัน ผู้ดูแล นักกายภาพ ฟีเจอร์หลัก: Onboarding+ยินยอม, คลังท่า 4 ท่า, Exercise Player (เล่น/หยุด/ความเร็ว/มุมมอง), Session (เช็กความปลอดภัย จับเวลา นับครั้ง หยุด/ทำต่อ/จบ), ความก้าวหน้า, ทีมดูแล (DEMO), ศูนย์ความรู้ (ลิงก์ภายนอก), ตั้งค่า/ลบข้อมูล
 
 **ตรวจให้ละเอียด (ระบุหลักฐานเป็นบรรทัด/ฟังก์ชัน ห้ามเดา ถ้าตรวจไม่ได้ให้บอกว่าตรวจไม่ได้):**
 1. Functional: ทุกปุ่ม/ลิงก์ทำงานจริง ไม่มีปุ่มหลอก ไม่มีหน้าว่าง; Session: เริ่ม/หยุด/ทำต่อ/จบ/ยกเลิก บันทึกสถานะตามจริง (ทำครบ/หยุดก่อนครบ) และไม่บันทึกซ้ำ

@@ -1,4 +1,4 @@
-# PIZZA – Parkinson's · In-home · Zestful · Zero-fall · Activity coach
+# PIZZA – Parkinson's home activity coach
 
 A PWA (React + Vite) that checks physiotherapy exercises through the phone camera. Processing happens on the device; video is never sent to the cloud.
 

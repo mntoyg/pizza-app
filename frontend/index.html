@@ -75,24 +75,50 @@ button.ln,.bt.ln,.nav button,.seg button{box-shadow:none}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 main>*{animation:rise .35s ease both}
 @media(prefers-reduced-motion:reduce){main>*{animation:none}button,.bt,.bx{transition:none}}
+/* ===== camera session ===== */
+.cam{position:relative;border-radius:24px;overflow:hidden;background:#101816;border:1px solid var(--ln)}
+.cam video{display:block;width:100%;max-height:56vh;aspect-ratio:4/3;object-fit:cover;transform:scaleX(-1)}
+.cam .qi{position:absolute;left:12px;top:12px}.tag.qi.good{background:var(--pr);color:var(--on)}
 </style>
 </head>
 <body>
 <main id="main" tabindex="-1"></main>
 <nav class="nav" id="nav" aria-label="Main menu"></nav>
+<script src="vendor/pizza-core.iife.js"></script>
 <script>
 "use strict";
 /* ===== state / storage (localStorage; swap for IndexedDB/backend later in the same functions) ===== */
 const KEY="pizza.v1";
 let DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};
 try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.sessions))DB={...DB,...r,set:{...DB.set,...r.set}}}catch(e){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast("Couldn't save data on this device")}}
+let CORE=null,CORE_ON=false;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(CORE_ON?{...DB,sessions:[]}:DB))}catch(e){toast("Couldn't save data on this device")}}
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0");
 const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
 function speak(t){if(!DB.set.voice||!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(t);u.lang="en-US";speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
 function toast(m){const d=document.createElement("div");d.className="ov";d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><button class="w">OK</button></div>';d.querySelector("button").onclick=()=>d.remove();document.body.appendChild(d)}
 function ask(m,ok){return new Promise(r=>{const d=document.createElement("div");d.className="ov";d.setAttribute("role","dialog");d.innerHTML='<div class="bx"><p>'+esc(m)+'</p><div class="row"><button class="ln g" data-v="0">Cancel</button><button class="g" data-v="1">'+esc(ok)+'</button></div></div>';d.onclick=e=>{const v=e.target.dataset.v;if(v!=null){d.remove();r(v=="1")}};document.body.appendChild(d)})}
+
+/* ===== PizzaCore: pose engine + session storage (IndexedDB). Settings stay in localStorage ===== */
+const ENGINE_ID={arm:"arm-raise",seat:"seated-alt-arm",sts:"sit-stand",trk:"torso-twist"};
+const UI_ID=Object.fromEntries(Object.entries(ENGINE_ID).map(([u,e])=>[e,u]));
+const CAMERA_OK=new Set(["arm"]); /* only exercises that have been tried with a real camera */
+const PRACTICE="Practice mode: the rep count follows the demo animation, not your movement.";
+const toCore=s=>({exerciseId:ENGINE_ID[s.ex]||s.ex,startedAt:s.start,durationS:s.dur,reps:s.reps,status:s.status});
+const fromCore=c=>({ex:UI_ID[c.exerciseId]||c.exerciseId,start:c.startedAt,dur:c.durationS,reps:c.reps,status:c.status});
+async function initCore(){
+ try{
+  if(!window.PizzaCore)return;
+  const c=await PizzaCore.createPizzaCore({consentTextVersion:"v1"});
+  if(c.storageMode!=="indexeddb")return; /* memory storage would lose the history on reload */
+  for(const s of DB.sessions){try{await c.sessions.save({clientId:"legacy-"+s.start+"-"+s.ex,...toCore(s)})}catch(e){}}
+  const all=await c.sessions.list();
+  CORE=c;CORE_ON=true;DB.sessions=all.map(fromCore).sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:0);save();
+  if(!SESS)render();
+ }catch(e){console.warn("PizzaCore storage unavailable, keeping localStorage",e)}
+}
+function addSession(s){DB.sessions.push(s);if(CORE_ON)CORE.sessions.save(toCore(s)).catch(()=>toast("Couldn't save this session on this device"));else save()}
 
 /* ===== exercise data (demo, NOT clinically approved) ===== */
 const D={shL:0,shR:0,el:8,lean:0,tw:0,h:0,k:0,fold:0};
@@ -218,7 +244,8 @@ detail(){const e=exOf(R.id);return `<button class="ln" data-go="lib" style="min-
  <h2>Steps</h2><ol>${e.steps.map(s=>`<li>${s}</li>`).join("")}</ol><h2>Precautions</h2><ul>${e.warn.map(s=>`<li>${s}</li>`).join("")}</ul>
  <div class="note">Reps and duration: as set by your physiotherapist or doctor (sample value in the app: ${TARGET} reps) · ${e.sup?"A carer should be nearby for this exercise":"This exercise is done seated"}</div><button class="w" data-go="session:${e.id}">Start exercise</button>`},
 session(){const e=exOf(R.id);if(!SESS)return `<h1>Before you start: ${e.name}</h1><div class="bx"><label class="chk"><input type="checkbox" class="ck"><span>The area is clear and non-slip, with a sturdy chair or handrail</span></label><label class="chk"><input type="checkbox" class="ck"><span>A physiotherapist or doctor has approved this exercise for me</span></label>${e.sup?`<label class="chk"><input type="checkbox" class="ck"><span>A carer is nearby throughout the exercise</span></label>`:""}<label class="chk"><input type="checkbox" class="ck"><span>I feel ready and will stop immediately if I feel unwell</span></label></div><div class="note">The demo is a prototype, not a certified exercise</div><div class="row"><button class="ln g" data-go="detail:${e.id}">Back</button><button class="g" id="st" disabled>Start exercise</button></div>`;
- return `<h2 style="margin-top:0">${e.name}</h2><div id="pv"></div><div class="bx row"><div class="g"><div class="mu">Time</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">Rep</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">Pause</button><button class="dg g" id="en">End exercise</button></div>`},
+ if(SESS.cam)return camPage(e);
+ return `<h2 style="margin-top:0">${e.name}</h2><div id="pv"></div><div class="note">${esc(SESS.camNote||PRACTICE)}</div><div class="bx row"><div class="g"><div class="mu">Time</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">Rep</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">Pause</button><button class="dg g" id="en">End exercise</button></div>`},
 done(){const s=DB.sessions[DB.sessions.length-1];if(!s)return PG.home();return `<h1>${s.status=="completed"?"Well done":"Exercise saved"}</h1><div class="bx"><b>${esc(exOf(s.ex).name)}</b><div class="mu">Time ${fmt(s.dur)} · ${s.reps} reps · ${s.status=="completed"?"Completed as planned":"Stopped early"}</div></div><div class="row"><button class="g" data-go="prog">View progress</button><button class="ln g" data-go="home">Back to home</button></div>`},
 prog(){const ds=days(),v=ds.map(d=>Math.round(DB.sessions.filter(s=>sameDay(s.start,d)).reduce((a,s)=>a+s.dur,0)/60)),mx=Math.max(5,...v),cnt={};DB.sessions.forEach(s=>cnt[s.ex]=(cnt[s.ex]||0)+1);const fav=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
  if(!DB.sessions.length)return `<h1>Progress</h1><div class="bx"><h3>No data yet</h3><p class="mu">After your first exercise, your history and weekly chart will appear here.</p><button data-go="lib">Choose an exercise</button></div>`;
@@ -238,27 +265,71 @@ set(){return `<h1>Profile and privacy</h1><div class="bx"><label for="nm"><b>Pre
  <div class="note">PIZZA is an activity-support tool, not a tool to diagnose or treat disease. The demo figures are prototypes that have not yet been reviewed by an expert.</div>`}
 };
 const TARGET=5,STITLE={detail:1,session:1,done:1};
+const camBlocker=id=>!CAMERA_OK.has(id)?"Camera counting is not available for this exercise yet. "+PRACTICE:!window.PizzaCore?"The camera engine could not be loaded. "+PRACTICE:!navigator.mediaDevices?"The camera needs a secure page (HTTPS). "+PRACTICE:"";
+const camPage=e=>`<h2 style="margin-top:0">${e.name}</h2><div class="cam"><video id="cv" playsinline muted autoplay></video><span class="tag qi" id="qi">Starting camera…</span></div><div class="cap" id="cap2" aria-live="polite">Allow the camera when your browser asks. The video stays on this device.</div>
+ <div id="frm"><div class="note">Stand about 2 m (6 ft) from the camera so your head down to your hips is in view, facing the camera, in good light.</div><div class="row"><button class="ln g" id="cx">Cancel</button><button class="g" id="go" disabled>Start counting</button></div></div>
+ <div id="run" hidden><div class="bx row"><div class="g"><div class="mu">Time</div><div class="big" id="tm">00:00</div></div><div class="g"><div class="mu">Rep</div><div class="big" id="rp2">0/${TARGET}</div></div></div><div class="bar"><i id="pg" style="width:0"></i></div><div class="sp"></div><div class="row"><button class="g" id="ps">Pause</button><button class="dg g" id="en">End exercise</button></div></div>`;
+let CAM=null;
+function stopCam(){const c=CAM;CAM=null;if(c){clearTimeout(c.timer);try{c.ctl&&c.ctl.requestStop()}catch(e){}}}
+function finishSession(st){const s=SESS;if(!s)return;SESS=null;stopAll();stopCam();addSession({ex:s.ex,start:s.start,dur:Math.round(s.el),reps:s.reps,status:st});speak(st=="completed"?"Exercise finished, well done":"Exercise saved");go("done")}
+function tickTimer(){let last=performance.now();TICK=setInterval(()=>{const n=performance.now();if(SESS&&!SESS.paused&&!SESS.lost&&SESS.stage!="frame")SESS.el+=(n-last)/1000;last=n;const t=$("#tm");if(t)t.textContent=fmt(SESS?SESS.el:0)},250)}
+async function startCam(e){
+ const me=CAM={ctl:null,timer:0,good:false,base:0,reps:0};
+ const alive=()=>CAM===me&&SESS&&SESS.cam;
+ const qi=$("#qi"),cap=$("#cap2"),go2=$("#go"),video=$("#cv");
+ const say=t=>{if(alive())cap.textContent=t};
+ const fallback=m=>{if(!alive())return;stopCam();SESS.cam=false;SESS.stage="run";SESS.camNote=m+" "+PRACTICE;render()};
+ $("#cx").onclick=()=>{stopCam();SESS=null;go("detail",e.id)};
+ const begin=()=>{if(!alive()||SESS.stage!="frame"||!me.ctl)return;SESS.stage="run";me.ctl.startCounting();me.base=0;SESS.reps=0;$("#frm").hidden=true;$("#run").hidden=false;qi.style.display="none";say("Raise both arms slowly, as high as is comfortable.");tickTimer();
+  $("#ps").onclick=()=>{SESS.paused=!SESS.paused;$("#ps").textContent=SESS.paused?"Resume":"Pause"};
+  $("#en").onclick=async()=>{const was=SESS.paused;SESS.paused=true;if(await ask("End the exercise now? It will be saved as actually done.","End exercise"))finishSession(SESS.reps>=TARGET?"completed":"stopped");else if(SESS){SESS.paused=was}}};
+ go2.onclick=begin;
+ try{
+  const vision=await import("./vendor/mediapipe/vision_bundle.js");
+  if(!alive())return;
+  const root=new URL("vendor/",location.href).href;
+  const core=await PizzaCore.createPizzaCore({vision,assets:{wasmPath:root+"mediapipe/wasm",modelPath:root+"models/pose_landmarker_lite.task"}});
+  if(!alive())return;
+  const ctl=await core.pose.start(video,ENGINE_ID[e.id],{
+   onStatus(s){if(alive()&&s=="running"&&SESS.stage=="frame"){qi.textContent="Looking for you…";say("Stand where the camera can see you.")}},
+   onQuality(q){if(!alive()||SESS.stage!="frame")return;const good=q=="good";qi.textContent=good?"Position OK":q=="fair"?"Almost there":"Can't see you clearly";qi.className="tag qi"+(good?" good":"");clearTimeout(me.timer);go2.disabled=true;if(good){say("You're in position. Hold still for a moment…");me.timer=setTimeout(()=>{if(alive()&&SESS.stage=="frame"){go2.disabled=false;say("Press Start counting when you're ready.")}},1500)}},
+   onRep(n){if(!alive())return;me.reps=n;if(SESS.stage!="run")return;if(SESS.paused||SESS.lost){me.base=n-SESS.reps;return}SESS.reps=n-me.base;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("Rep "+SESS.reps);if(SESS.reps>=TARGET)finishSession("completed")},
+   onCue(c){say(c.text);if(SESS&&SESS.stage=="run")speak(c.text)},
+   onPause(){if(alive())SESS.lost=true},
+   onResume(){if(alive())SESS.lost=false},
+   onSafetyStop(){if(alive()&&SESS.stage=="run")finishSession("stopped")},
+   onDone(){if(alive()&&SESS.stage=="run")finishSession(SESS.reps>=TARGET?"completed":"stopped")},
+   onError(){}
+  },{autoSave:false,deferCounting:true});
+  if(!alive()){ctl.requestStop();return}
+  me.ctl=ctl;
+ }catch(err){
+  fallback(err&&err.name=="NotAllowedError"?"Camera permission was denied.":err&&err.name=="NotFoundError"?"No camera was found.":"The camera or the pose model could not be started on this device.");
+ }
+}
 function after(){
  const p=R.p,e=exOf(R.id),pv=$("#pv");
  document.querySelectorAll("[data-th]").forEach(x=>thumb(x,exOf(x.dataset.th)));
  if(p=="onb"&&pv){const x=EX[R.ob==2?2:R.ob==1?1:0];player(pv,x,{ctl:false,mini:true})}
  if(p=="detail")player(pv,e,{speak:false});
  if(p=="session"){
-  if(!SESS){const ck=[...document.querySelectorAll(".ck")],b=$("#st");ck.forEach(c=>c.onchange=()=>b.disabled=!ck.every(x=>x.checked));b.onclick=()=>{SESS={ex:e.id,start:new Date().toISOString(),el:0,reps:0,paused:false};render()};return}
-  let ctl;const fin=st=>{const s=SESS;SESS=null;stopAll();DB.sessions.push({ex:s.ex,start:s.start,dur:Math.round(s.el),reps:s.reps,status:st});save();speak(st=="completed"?"Exercise finished, well done":"Exercise saved");go("done")};
+  if(!SESS){const ck=[...document.querySelectorAll(".ck")],b=$("#st");ck.forEach(c=>c.onchange=()=>b.disabled=!ck.every(x=>x.checked));b.onclick=()=>{const why=camBlocker(e.id);SESS={ex:e.id,start:new Date().toISOString(),el:0,reps:0,paused:false,cam:!why,camNote:why,stage:why?"run":"frame"};render()};return}
+  if(SESS.cam){startCam(e);return}
+  let ctl;const fin=finishSession;
   ctl=player(pv,e,{ctl:false,speak:true,onLoop(){if(SESS&&!SESS.paused){SESS.reps++;$("#rp2").textContent=SESS.reps+"/"+TARGET;$("#pg").style.width=Math.min(100,SESS.reps/TARGET*100)+"%";speak("Rep "+SESS.reps);if(SESS.reps>=TARGET)fin("completed")}}});
-  TICK=setInterval(()=>{if(SESS&&!SESS.paused){SESS.el+=.25;$("#tm").textContent=fmt(SESS.el)}},250);
+  tickTimer();
   $("#ps").onclick=()=>{SESS.paused=!SESS.paused;SESS.paused?ctl.pause():ctl.resume();$("#ps").textContent=SESS.paused?"Resume":"Pause"};
   $("#en").onclick=async()=>{ctl.pause();SESS.paused=true;if(await ask("End the exercise now? It will be saved as actually done.","End exercise"))fin(SESS.reps>=TARGET?"completed":"stopped");else{SESS.paused=false;ctl.resume();$("#ps").textContent="Pause"}};
  }
  if(p=="set"){$("#nm").oninput=ev=>{DB.set.name=ev.target.value;save()};$("#vc").onchange=ev=>{DB.set.voice=ev.target.checked;save()};
   $("#fs").onclick=ev=>{const v=ev.target.dataset.v;if(!v)return;DB.set.fs=+v;save();document.documentElement.style.fontSize=v*100+"%";[...$("#fs").children].forEach(b=>b.classList.toggle("on",b==ev.target))};
-  $("#clr").onclick=async()=>{if(await ask("Delete all history and settings on this device? This cannot be undone.","Delete all")){DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};try{localStorage.removeItem(KEY)}catch(x){}document.documentElement.style.fontSize="100%";R.ob=0;go("onb")}}}
+  $("#clr").onclick=async()=>{if(await ask("Delete all history and settings on this device? This cannot be undone.","Delete all")){if(CORE_ON){try{await CORE.data.deleteAll()}catch(x){toast("Couldn't clear every stored session")}}DB={sessions:[],set:{fs:1,voice:true,name:"",onb:false}};try{localStorage.removeItem(KEY)}catch(x){}document.documentElement.style.fontSize="100%";R.ob=0;go("onb")}}}
 }
 function render(){
  stopAll();speechSynthesis&&speechSynthesis.cancel&&speechSynthesis.cancel();
  if(!DB.set.onb&&R.p!="onb")R.p="onb";
  if(R.p!="session"&&R.p!="done")SESS=null;
+ if(!SESS&&CAM)stopCam();
  if(!PG[R.p])R.p="home";
  const m=$("#main");m.innerHTML=PG[R.p]();
  const on=R.p=="onb";$("#nav").style.display=on?"none":"";if(on)m.style.marginLeft="auto";else m.style.marginLeft="";
@@ -267,7 +338,7 @@ function render(){
 }
 document.addEventListener("click",async e=>{
  const g=e.target.closest("[data-go]");if(g){const [p,id]=g.dataset.go.split(":");
-  if(SESS&&R.p=="session"&&p!="session"){if(!(await ask("You're exercising. Exit and save what you actually did?","Exit and save")))return;DB.sessions.push({ex:SESS.ex,start:SESS.start,dur:Math.round(SESS.el),reps:SESS.reps,status:"stopped"});save();SESS=null}
+  if(SESS&&R.p=="session"&&p!="session"){if(SESS.cam&&SESS.stage=="frame"){stopCam();SESS=null}else{if(!(await ask("You're exercising. Exit and save what you actually did?","Exit and save")))return;addSession({ex:SESS.ex,start:SESS.start,dur:Math.round(SESS.el),reps:SESS.reps,status:"stopped"});SESS=null;stopCam()}}
   go(p,id);return}
  const a=e.target.closest("[data-act]");if(!a)return;
  if(a.dataset.act=="obn"){if(R.ob<2){R.ob++;render()}else{DB.set.onb=true;save();go("home")}}
@@ -275,6 +346,7 @@ document.addEventListener("click",async e=>{
 });
 document.documentElement.style.fontSize=(DB.set.fs||1)*100+"%";
 render();
+initCore();
 </script>
 </body>
 </html>

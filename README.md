@@ -136,5 +136,24 @@ npm run db:stop
 
 ## Credits
 
-- MediaPipe Pose Landmarker by Google (Apache-2.0).
-- Built for the STEM2Connect AI Hackathon 2026.
+We use open-source software and credit it here. We use **no datasets** and copy no third-party code into the repository except the vendored files listed first. Licences are as declared by each package.
+
+**Shipped with the app (vendored in `frontend/vendor/`, unmodified; see [frontend/vendor/README.md](frontend/vendor/README.md) for sources and checksums)**
+- **MediaPipe Pose Landmarker (lite)** model and **`@mediapipe/tasks-vision` 0.10.14** (WebAssembly runtime) by Google, Apache-2.0.
+- `pizza-core.iife.js` is built from our own `ai/` package.
+
+**Libraries used by our code**
+- [`idb`](https://github.com/jakearchibald/idb) 8, ISC: IndexedDB wrapper used by `ai/` and bundled into `pizza-core.iife.js` (the only runtime dependency of our packages).
+
+**Build, test and quality tools (development only; not shipped)**
+- [TypeScript](https://www.typescriptlang.org/) 6 (Apache-2.0), [Vite](https://vite.dev/) 8 (MIT), [Vitest](https://vitest.dev/) 5 (MIT), [ESLint](https://eslint.org/) 10 and [typescript-eslint](https://typescript-eslint.io/) 8 (MIT), [Prettier](https://prettier.io/) 3 (MIT), [fake-indexeddb](https://github.com/dumbmatter/fakeIndexedDB) 6 (Apache-2.0).
+- [PGlite](https://github.com/electric-sql/pglite) 0.5 (Apache-2.0): Postgres in WebAssembly, used to test our SQL and row-level-security policies.
+- [Supabase](https://supabase.com/) CLI 3 (MIT) and the Supabase local stack (Docker images), used to run the backend locally. The Supabase backend code in `backend/` is ours.
+- [SonarCloud](https://sonarcloud.io/) static analysis and GitHub Actions for CI; [Vercel](https://vercel.com/) for static hosting of the demo.
+
+**External content we link to (not copied or embedded)**
+- Chulalongkorn Parkinson Center of Excellence video library (chulapd.org) and the Parkinson's Foundation exercise page (parkinson.org), linked from the in-app Knowledge center.
+
+**AI assistance:** see "AI tools and how we used them" above.
+
+Built for the STEM2Connect AI Hackathon 2026.
